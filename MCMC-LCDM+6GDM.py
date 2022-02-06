@@ -1,11 +1,14 @@
-import numpy as np
+#import numpy as np
 
 from pathlib import Path
+
+#from cobaya.run import run
 
 import src.mycosmo as mc
 
 # %%
 PROJECT_NAME = "gdm_5+1"
+
 
 CWD = Path.cwd()
 PROJECT_DIR = CWD / 'output' / PROJECT_NAME / ''
@@ -24,31 +27,15 @@ CLASS_PATH = COBAYA_PACKAGES_PATH / 'code/my_class/'
 
 # initialize w model
 log10a_epoch_intervals_endpoints = (-14.0, -4.0, -2.0, 0.0)
-epoch_intervals_n_knots = (2, 3, 1)
+n_inter_interval_knots = (0, 1, 0)
 
-def piecewise_linspace(interval_endpoints: iter(), interval_n_knots: :
-    """
+log10a_knots=np.concatenate(tuple(np.linspace(start, end, n_knots+1, endpoint=False)
+                                  for start, end, n_knots in zip(log10a_epoch_intervals_endpoints[:],
+                                                                 log10a_epoch_intervals_endpoints[1:],
+                                                                 n_inter_interval_knots)) + \
+                            (np.array([log10a_epoch_intervals_endpoints[-1]]),))
 
-    :param interval_endpoints:
-    :param interval_knots:
-    :return:
-    """
-
-
-n_knots = sum(epoch_intervals_n_knots)
-
-epoch_log10a_knots = tuple(tuple(np.linspace(start, end, n_knots, endpoint=True))
-                           for start, end, n_knots in zip(log10a_epoch_intervals_endpoints[:-1],
-                                                          log10a_epoch_intervals_endpoints[1:],
-                                                          epoch_intervals_n_knots))
-# %%
-log10a_knots = sum(np.linspace(start, end, n_knots, endpoint=False)
-                   for start, end, n_knots in zip(log10a_epoch_intervals_endpoints[:-1],
-                                                  log10a_epoch_intervals_endpoints[1:],
-                                                  epoch_intervals_n_knots), (,) ) + \
-               tuple(np.linspace(log10a_epoch_intervals_endpoints[-2],
-                                   log10a_epoch_intervals_endpoints[-1]
-                                                 epoch_intervals_n_knots[-1]-1, endpoint=False))))
+n_knots = len(log10a_knots)
 
 # store properties of gdm_fluid
 c_s2 = 1
@@ -58,7 +45,8 @@ z_alpha = 3000.
 gdm_fixed_setting_classy = {'gdm_log10a_vals': ','.join([str(val) for val in log10a_knots]),
                             'gdm_c_eff2': c_s2,
                             'gdm_c_vis2': c_vis2,
-                            'gdm_z_alpha': z_alpha
+                            'gdm_z_alpha': z_alpha,
+                            'gdm_interpolation_order': 1,
                             }
 
 w_ranges_of_epoch = {'early': dict(min=-1.0, max=1.0 / 3.0),
@@ -68,7 +56,7 @@ w_ranges_of_epoch = {'early': dict(min=-1.0, max=1.0 / 3.0),
 
 def w_range_for_log10a(log10a):
     epoch = 'early'
-    if log10a < log10a_epoch_intervals_endpoints[1]:
+    if log10a <= log10a_epoch_intervals_endpoints[1]:
         pass
     elif log10a < log10a_epoch_intervals_endpoints[2]:
         epoch = 'transition'
@@ -156,6 +144,6 @@ cobaya_input = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
 
 # %%
 
-from cobaya.run import run
 
-updated_info, sampler = run(cobaya_input, debug=True, stop_at_error=True)
+updated_info, sampler = run(cobaya_input, debug=True, stop_at_error=True, resume=True)
+

@@ -18,8 +18,8 @@ ENV PATH=/opt/conda/bin:$PATH
 
 # set up software directory outside of /root for shifter
 RUN mkdir -p /software/lib/python/site-packages
-ENV PIP_TARGET /software/lib/python/site-packages
-ENV PYTHONPATH /software/lib/python/site-packages
+ENV PIP_TARGET /opt/conda/lib/python3.9/site-packages
+ENV PYTHONPATH /opt/conda/lib/python3.9/site-packages
 
 # install various python packages
 RUN /opt/conda/bin/conda install -c conda-forge \
@@ -79,6 +79,6 @@ RUN wget -O class_public.zip https://github.com/mcmeiers/class_public/archive/re
 RUN unzip class_public.zip
 RUN rm class_public.zip
 WORKDIR /software/cobaya_packages/code/class_public-designer/
-RUN PYTHON=python make -j 4
+RUN make -j 4 PYTHON=python
 
 WORKDIR /app
