@@ -3,6 +3,8 @@ import copy
 
 import classy
 
+import numpy as np
+
 
 # %% ModelParameters Object Definition
 class ModelParameters(object):
@@ -36,16 +38,17 @@ class ModelParameters(object):
     def get_vals_of_model_params(self, input_vals):
 
         vals_of_input_parameters = dict(zip(self.input_param_names, np.split(input_vals, self.input_splits)))
-        vals_of_model_params = self.vals_of_fixed_params | vals_of_input_parameters
+        vals_of_model_params = {**self.vals_of_fixed_params, **vals_of_input_parameters}
 
         if self.dependent_param_of_level is None:
             return self._initialize_get_vals_of_model_params(vals_of_model_params)
 
         for level in range(1, self._max_fn_level_ + 1):
             level_params = self.dependent_param_of_level[level]
-            vals_of_model_params |= dict(zip(level_params,
-                                             [self.fn_of_dependent_params[param](**vals_of_model_params) for param in
-                                              level_params]))
+            vals_of_model_params = {**vals_of_model_params,
+                                    **dict(zip(level_params,
+                                              [self.fn_of_dependent_params[param](**vals_of_model_params) for param in
+                                               level_params]))}
         return vals_of_model_params
 
     def get_vals_of_variable_parameters(self, input_vals):
@@ -75,7 +78,7 @@ class ModelParameters(object):
             assert bool(
                 current_level_values_of_vars), \
                 "Variable collection unsolvable check for closure and loops"
-            vals_of_model_params |= current_level_values_of_vars
+            vals_of_model_params = {**vals_of_model_params, **current_level_values_of_vars}
             current_level_vars = next_level_vars
             current_level_values_of_vars = {}
             next_level_vars = []
@@ -131,7 +134,8 @@ class CosmoModel(object):
         classy_output_settings = {'output': 'tCl,pCl,lCl',
                                   'lensing': 'yes',
                                   'l_max_scalars': 2700}
-        self.cosmo.set(self.model_params.get_class_input(input_vals) | classy_output_settings)
+        self.cosmo.set({**self.model_params.get_class_input(input_vals),
+                        **classy_output_settings})
         self.cosmo.compute()
         if derived_params is not None:
             self.cosmo.get_current_derived_parameters(derived_params)

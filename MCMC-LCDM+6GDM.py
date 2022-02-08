@@ -1,8 +1,8 @@
-#import numpy as np
+import numpy as np
 
 from pathlib import Path
 
-#from cobaya.run import run
+from cobaya.run import run
 
 import src.mycosmo as mc
 
@@ -20,8 +20,8 @@ PLOT_PATH.mkdir(exist_ok=True, parents=True)
 DATA_PATH = PROJECT_DIR / 'data/'
 DATA_PATH.mkdir(exist_ok=True, parents=True)
 
-COBAYA_PACKAGES_PATH = CWD.parent
-CLASS_PATH = COBAYA_PACKAGES_PATH / 'code/my_class/'
+COBAYA_PACKAGES_PATH = Path('/software/cobaya_packages')
+CLASS_PATH = COBAYA_PACKAGES_PATH / 'code/class_public-designer/'
 
 # %% in this cell: initialize gdm model
 
@@ -145,5 +145,5 @@ cobaya_input = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
 # %%
 
 
-updated_info, sampler = run(cobaya_input, debug=True, stop_at_error=True, resume=True)
+updated_info, sampler = run(cobaya_input)
 
