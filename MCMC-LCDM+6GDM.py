@@ -4,7 +4,7 @@ from pathlib import Path
 
 from cobaya.run import run
 
-import src.mycosmo as mc
+from mpi4py import MPI
 
 # %%
 PROJECT_NAME = "gdm_5+1"
@@ -88,7 +88,7 @@ gdm_cobaya_params = {'gdm_alpha': {'prior': alpha_gdm_range,
 # %%
 
 
-cobaya_input = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
+cobaya_info = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
                                        'path': str(CLASS_PATH)}},
                     params={'logA': {'prior': {'min': 1.61, 'max': 3.91},
                                      'ref': {'dist': 'norm', 'loc': 3.05,
@@ -138,12 +138,29 @@ cobaya_input = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
                                        "covmat": "auto",
                                        "Rminus1_stop": 0.2,
                                        "Rminus1_cl_stop": 0.5}),
-                    output=str(DATA_PATH / PROJECT_NAME),
+                    output=str(DATA_PATH),
                     packages_path = COBAYA_PACKAGES_PATH
                     )
 
 # %%
 
 
-updated_info, sampler = run(cobaya_input)
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+
+from cobaya.run import run
+from cobaya.log import LoggedError
+
+success = False
+try:
+    upd_info, mcmc = run(cobaya_info)
+    success = True
+except LoggedError as err:
+    pass
+
+# Did it work? (e.g. did not get stuck)
+success = all(comm.allgather(success))
+
+if not success and rank == 0:
+    print("Sampling failed!")
 
