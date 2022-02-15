@@ -33,29 +33,29 @@ RUN python -m pip install cobaya --upgrade
 
 
 # install MPICH
-#ARG mpich=3.3
-#ARG mpich_prefix=mpich-$mpich
-#RUN \
-#    wget https://www.mpich.org/static/downloads/$mpich/$mpich_prefix.tar.gz && \
-#    tar xvzf $mpich_prefix.tar.gz                                           && \
-#    cd $mpich_prefix                                                        && \
-#    ./configure                                                             && \
-#    make -j 4                                                               && \
-#    make install                                                            && \
-#    make clean                                                              && \
-#    cd ..
+ARG mpich=4.0
+ARG mpich_prefix=mpich-$mpich
+RUN \
+    wget https://www.mpich.org/static/downloads/$mpich/$mpich_prefix.tar.gz && \
+    tar xvzf $mpich_prefix.tar.gz                                           && \
+    cd $mpich_prefix                                                        && \
+    ./configure FCFLAGS=-fallow-argument-mismatch  FFLAGS=-fallow-argument-mismatch && \
+    make -j 4                                                               && \
+    make install                                                            && \
+    make clean                                                              && \
+    cd ..
 
 # install mpi4py\
-#ARG mpi4py=3.0.3
-#ARG mpi4py_prefix=mpi4py-$mpi4py
-#RUN \
-#    wget https://bitbucket.org/mpi4py/mpi4py/downloads/$mpi4py_prefix.tar.gz && \
-#    tar xvzf $mpi4py_prefix.tar.gz                                           && \
-#    cd $mpi4py_prefix                                                        && \
-#    python setup.py build                                                   && \
-#    python setup.py install                                                 && \
-#    cd ..                                                                    && \
-#    rm -rf $mpi4py_prefix
+ARG mpi4py=3.1.3
+ARG mpi4py_prefix=mpi4py-$mpi4py
+RUN \
+    wget https://bitbucket.org/mpi4py/mpi4py/downloads/$mpi4py_prefix.tar.gz && \
+    tar xvzf $mpi4py_prefix.tar.gz                                           && \
+    cd $mpi4py_prefix                                                        && \
+    python setup.py build                                                   && \
+    python setup.py install                                                 && \
+    cd ..                                                                    && \
+    rm -rf $mpi4py_prefix
 
 # install cfits
 WORKDIR /software
