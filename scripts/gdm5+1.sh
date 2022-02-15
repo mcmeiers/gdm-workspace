@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --mail-user=mcmeiers@ucdavis.edu
 #SBATCH --mail-type=ALL
-#SBATCH --qos=regular
+#SBATCH --qos=debug
 #SBATCH --time=08:00:00
 #SBATCH --account=mp107
 #SBATCH --nodes=50
