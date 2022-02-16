@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 
 from cobaya.run import run
+from cobaya.log import LoggedError
 
 from mpi4py import MPI
 
@@ -145,9 +146,6 @@ cobaya_info = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-
-from cobaya.run import run
-from cobaya.log import LoggedError
 
 success = False
 try:

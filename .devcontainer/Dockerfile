@@ -1,5 +1,4 @@
-FROM docker.io/continuumio/miniconda3:latest
-WORKDIR /app
+FROM docker.io/continuumio/miniconda3:4.10.3
 
 # Install base python3
 RUN \
@@ -27,19 +26,21 @@ RUN /opt/conda/bin/conda install -c conda-forge \
     numpy         \
     cython        \
     scipy         \
-    ipython
+    ipython       \
+    ipykernels
 
 RUN python -m pip install cobaya --upgrade
+RUN python -m pip install getdist
 
 
 # install MPICH
-ARG mpich=4.0
+ARG mpich=3.3
 ARG mpich_prefix=mpich-$mpich
 RUN \
     wget https://www.mpich.org/static/downloads/$mpich/$mpich_prefix.tar.gz && \
     tar xvzf $mpich_prefix.tar.gz                                           && \
     cd $mpich_prefix                                                        && \
-    ./configure FCFLAGS=-fallow-argument-mismatch  FFLAGS=-fallow-argument-mismatch && \
+    ./configure                                                             && \
     make -j 4                                                               && \
     make install                                                            && \
     make clean                                                              && \
@@ -81,4 +82,5 @@ RUN rm class_public.zip
 WORKDIR /software/cobaya_packages/code/class_public-designer/
 RUN make -j 4 PYTHON=python
 
-WORKDIR /app
+WORKDIR /opt/project
+RUN mkdir output
