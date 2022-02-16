@@ -9,9 +9,7 @@ from mpi4py import MPI
 # %%
 PROJECT_NAME = "gdm_5+1"
 
-
-CWD = Path.cwd()
-PROJECT_DIR = CWD / 'output' / PROJECT_NAME / ''
+PROJECT_DIR = Path('/data') / PROJECT_NAME
 (PROJECT_DIR / "").mkdir(exist_ok=True, parents=True)
 
 PLOT_PATH = PROJECT_DIR / 'plots/'
