@@ -27,7 +27,7 @@ RUN /opt/conda/bin/conda install -c conda-forge \
     cython        \
     scipy         \
     ipython       \
-    ipykernels
+    ipykernel
 
 RUN python -m pip install cobaya --upgrade
 RUN python -m pip install getdist
