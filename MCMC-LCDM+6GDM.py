@@ -8,10 +8,10 @@ from cobaya.log import LoggedError
 from mpi4py import MPI
 
 # %%
-PROJECT_NAME = "gdm_5+1"
+PROJECT_NAME = "gdm_6"
 
-PROJECT_DIR = Path('/data') / PROJECT_NAME
-(PROJECT_DIR / "").mkdir(exist_ok=True, parents=True)
+PROJECT_DIR = Path('/opt/project/output') / PROJECT_NAME
+PROJECT_DIR.mkdir(exist_ok=True, parents=True)
 
 PLOT_PATH = PROJECT_DIR / 'plots/'
 PLOT_PATH.mkdir(exist_ok=True, parents=True)
@@ -130,15 +130,16 @@ cobaya_info = dict(theory={'classy': {'extra_args': gdm_fixed_setting_classy,
                             },
                     likelihood={'planck_2018_lowl.TT': None,
                                 'planck_2018_lowl.EE': None,
-                                'planck_2018_highl_plik.TTTEEE_lite': None},
+                                'planck_2018_highl_plik.TTTEEE_lite': None,
+                                'planck_2018_lensing.clik': None},
                     sampler=dict(mcmc={"drag": True,
                                        "oversample_power": 0.4,
                                        "proposal_scale": 1.9,
                                        "covmat": "auto",
-                                       "Rminus1_stop": 0.2,
-                                       "Rminus1_cl_stop": 0.5}),
+                                       "Rminus1_stop": 0.01,
+                                       "Rminus1_cl_stop": 0.025}),
                     output=str(DATA_PATH),
-                    packages_path = COBAYA_PACKAGES_PATH
+                    packages_path = str(COBAYA_PACKAGES_PATH)
                     )
 
 # %%
@@ -149,7 +150,7 @@ rank = comm.Get_rank()
 
 success = False
 try:
-    upd_info, mcmc = run(cobaya_info)
+    upd_info, mcmc = run(cobaya_info, resume=True)
     success = True
 except LoggedError as err:
     pass
