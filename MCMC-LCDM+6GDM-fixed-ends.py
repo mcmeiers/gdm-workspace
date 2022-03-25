@@ -13,7 +13,7 @@ from mpi4py import MPI
 # %% Define project name and output directory
 PROJECT_NAME = "gdm_6_fixed_ends"
 
-OUTPUT_DIR = Path('/data') / PROJECT_NAME
+OUTPUT_DIR = Path('/opt/project/output') / PROJECT_NAME
 (OUTPUT_DIR / "").mkdir(exist_ok=True, parents=True)
 
 COBAYA_PACKAGES_PATH = Path('/software/cobaya_packages')
