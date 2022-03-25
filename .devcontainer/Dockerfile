@@ -82,5 +82,12 @@ RUN rm class_public.zip
 WORKDIR /software/cobaya_packages/code/class_public-designer/
 RUN make -j 4 PYTHON=python
 
+RUN /opt/conda/bin/conda install -c conda-forge \
+    click \
+    ruamel.yaml \
+    pytest      \
+    jupyter
+
 WORKDIR /opt/project
 RUN mkdir output
+
