@@ -27,20 +27,12 @@ class Test_wModel:
         expected_range_of_param = dict(zip(['w_0', 'w_1'], ({'min': -1, 'max': 1},) * 2))
         assert w_mdl.range_of_param == expected_range_of_param
 
-    def test_wModel_init_range_of_param_filltered(self):
+    def test_wModel_init_range_of_param_filtered(self):
         range_filter = ((-1 / 2., {'min': -1 / 2, 'max': 1 / 2}),)
         w_mdl = gdmtools.wModel([-1, 0],range_filter=range_filter)
         expected_range_of_param = {'w_0':{'min': -1, 'max': 1},
                                    'w_1':{'min': -1/2, 'max': 1/2}}
         assert w_mdl.range_of_param == expected_range_of_param
-
-    def test_wModel_knots_w_vals_signature(self):
-        w_mdl = gdmtools.wModel([-1, 0])
-        assert w_mdl.knots_w_vals.__code__.co_varnames[:w_mdl.knots_w_vals.__code__.co_argcount] == ('w_0', 'w_1')
-
-    def test_wModel_knots_w_vals_signature_with_fixed(self):
-        w_mdl = gdmtools.wModel([-1, 0], fixed_knots=[(1, 1)])
-        assert w_mdl.knots_w_vals.__code__.co_varnames[:w_mdl.knots_w_vals.__code__.co_argcount] == ('w_0',)
 
     def test_wModel_knots_w_vals_expected_output(self):
         w_mdl = gdmtools.wModel([-1, 0])
@@ -49,6 +41,22 @@ class Test_wModel:
     def test_wModel_knots_w_vals_expected_output_fixed(self):
         w_mdl = gdmtools.wModel([-1, 0], [(0, 1)])
         assert all(w_mdl.knots_w_vals(1 / 3.) == np.array([1, 1 / 3.]))
+        
+    def test_wModel_classy_fmt_knots_w_vals_signature(self):
+        w_mdl = gdmtools.wModel([-1, 0])
+        assert w_mdl.classy_fmt_knots_w_vals.__code__.co_varnames[:w_mdl.knots_w_vals.__code__.co_argcount] == ('w_0', 'w_1')
+
+    def test_wModel_classy_fmt_knots_w_vals_signature_with_fixed(self):
+        w_mdl = gdmtools.wModel([-1, 0], fixed_knots=[(1, 1)])
+        assert w_mdl.classy_fmt_knots_w_vals.__code__.co_varnames[:w_mdl.knots_w_vals.__code__.co_argcount] == ('w_0',)
+
+    def test_wModel_classy_fmt_knots_w_vals_expected_output(self):
+        w_mdl = gdmtools.wModel([-1, 0])
+        assert w_mdl.classy_fmt_knots_w_vals(1 / 2., 1 / 3.) == f'{1/2.},{1/3.}'
+
+    def test_wModel_classy_fmt_knots_w_vals_expected_output_fixed(self):
+        w_mdl = gdmtools.wModel([-1, 0], [(0, 1)])
+        assert w_mdl.classy_fmt_knots_w_vals(1 / 3.) == f'{1},{1 /3.}'
 
 
 class Test_gdmModel:
@@ -76,7 +84,7 @@ class Test_gdmModel:
                                            'latex': '\\alpha_{gdm}'},
                              'w_0': {'prior': {'min': -1, 'max': 1}, 'drop': True},
                              'w_1': {'prior': {'min': -1, 'max': 1}, 'drop': True},
-                             'gdm_w_vals': {'value': 'lambda w_0,w_1:[w_0,w_1]',
+                             'gdm_w_vals': {'value': w_mdl.classy_fmt_knots_w_vals,
                                             'derived': False}
                              }
         assert gdm_mdl.cobaya_params == expected_settings
