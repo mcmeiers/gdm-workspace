@@ -17,6 +17,14 @@ class wModel:
     #TODO: model doc string
     """
 
+    @staticmethod
+    def _range_from_filter(knot_x, filter_range, default_range=(-np.inf, np.inf)):
+        knot_y_range = default_range
+        for filter_start, range in filter_range:
+            if knot_x >= filter_start:
+                knot_y_range = range
+        return knot_y_range
+
     def __init__(self, knots_log10a, fixed_knots=None, range_filter=None):
         """
         TODO
@@ -64,30 +72,32 @@ class wModel:
         self._range_filter = range_filter
         self.range_of_param = {}
         for param, log10idx in zip(self.param_names, var_knots_idx):
-            self.range_of_param[param] = _range_from_filter(
+            self.range_of_param[param] = wModel._range_from_filter(
                 self.knots_log10a[log10idx],
                 self._range_filter,
                 default_range={"min": -1, "max": 1},
             )
 
-        # add tests
-
         self.w_mins = [self.range_of_param[param]["min"] for param in self.param_names]
         self.w_maxes = [self.range_of_param[param]["max"] for param in self.param_names]
 
-    # def to_yaml(self,file_path):
-    #     """
-    #     TODO
-    #     :param file_path:
-    #     :return: None
-    #     """
-    #     yaml=YAML(typ='safe')
-    #     yaml.default_flow_style = None
-    #     model_params = {'knots_log10a': self.knots_log10a}
-    #     if self._fixed_knots != []:
-    #         model_params['_fixed_knots'] = self._fixed_knots
-    #
-    #     yaml.dump(model_params, file_path)
+    @classmethod
+    def from_yaml(cls, yaml: YAML):
+        return
+
+    def to_yaml(self, file_path):
+        """
+        TODO
+        :param file_path:
+        :return: None
+        """
+        yaml = YAML(typ="safe")
+        yaml.default_flow_style = None
+        model_params = {"knots_log10a": self.knots_log10a}
+        if self._fixed_knots != []:
+            model_params["_fixed_knots"] = self._fixed_knots
+
+        yaml.dump(model_params, file_path)
 
     def w_vals(self, var_w_vals):
         """
@@ -99,14 +109,6 @@ class wModel:
         for idx, val in zip(self._var_knots_idx, var_w_vals):
             w_vals[idx] = val
         return w_vals
-
-
-def _range_from_filter(knot_x, filter_range, default_range=(-np.inf, np.inf)):
-    knot_y_range = default_range
-    for filter_start, range in filter_range:
-        if knot_x >= filter_start:
-            knot_y_range = range
-    return knot_y_range
 
 
 # def read_w_model_from_yaml(file_path):
