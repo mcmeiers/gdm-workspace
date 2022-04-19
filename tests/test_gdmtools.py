@@ -5,8 +5,8 @@ import src.gdmtools as gdmtools
 
 class Test_wModel:
     def test_wModel_init_stores_knots_log10a(self):
-        w_mdl = gdmtools.wModel([-1, 0])
-        assert w_mdl.knots_log10a == [-1, 0]
+        w_mdl = gdmtools.wModel((-1, 0))
+        assert w_mdl.knots_log10a == (-1, 0)
 
     def test_wModel_init_counts_n_knots(self):
         w_mdl = gdmtools.wModel([-1, 0])
@@ -97,14 +97,40 @@ class Test_gdmModel:
         }
         assert gdm_mdl.fixed_settings == expected_settings
 
-    def test_gdm_cobaya_params(self):
+    def test_gdm_params(self):
         w_mdl = gdmtools.wModel([-1, 0])
-        alpha_range = {"min": 0, "max": 0.3}
-        gdm_mdl = gdmtools.gdmModel(w_mdl, alpha_range)
+        alpha = {"min": 0, "max": 0.3}
+        gdm_mdl = gdmtools.gdmModel(w_mdl, alpha)
         expected_settings = {
             "gdm_alpha": {"prior": {"min": 0, "max": 0.3}, "latex": "\\alpha_{gdm}"},
             "w_0": {"prior": {"min": -1, "max": 1}, "drop": True},
             "w_1": {"prior": {"min": -1, "max": 1}, "drop": True},
             "gdm_w_vals": {"value": w_mdl.classy_fmt_knots_w_vals, "derived": False},
         }
-        assert gdm_mdl.cobaya_params == expected_settings
+        assert gdm_mdl.params == expected_settings
+
+    def test_gdm_params_with_variable_c_eff2(self):
+        w_mdl = gdmtools.wModel([-1, 0])
+        alpha = {"min": 0, "max": 0.3}
+        gdm_mdl = gdmtools.gdmModel(w_mdl, alpha, c_eff2={"min": 0, "max": 1})
+        expected_settings = {
+            "gdm_alpha": {"prior": {"min": 0, "max": 0.3}, "latex": "\\alpha_{gdm}"},
+            "w_0": {"prior": {"min": -1, "max": 1}, "drop": True},
+            "w_1": {"prior": {"min": -1, "max": 1}, "drop": True},
+            "gdm_w_vals": {"value": w_mdl.classy_fmt_knots_w_vals, "derived": False},
+            "gdm_c_eff2": {"min": 0, "max": 1},
+        }
+        assert gdm_mdl.params == expected_settings
+
+    def test_gdm_params_with_variable_c_vis2(self):
+        w_mdl = gdmtools.wModel([-1, 0])
+        alpha = {"min": 0, "max": 0.3}
+        gdm_mdl = gdmtools.gdmModel(w_mdl, alpha, c_vis2={"min": 0, "max": 1})
+        expected_settings = {
+            "gdm_alpha": {"prior": {"min": 0, "max": 0.3}, "latex": "\\alpha_{gdm}"},
+            "w_0": {"prior": {"min": -1, "max": 1}, "drop": True},
+            "w_1": {"prior": {"min": -1, "max": 1}, "drop": True},
+            "gdm_w_vals": {"value": w_mdl.classy_fmt_knots_w_vals, "derived": False},
+            "gdm_c_vis2": {"min": 0, "max": 1},
+        }
+        assert gdm_mdl.params == expected_settings
