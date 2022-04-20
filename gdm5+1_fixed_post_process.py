@@ -15,11 +15,9 @@ OUTPUT_DIR = Path("/opt/project/output/gdm6/gdm_6_fixed_ends/gdm6_fixed_post")
 
 # In[15]:
 
-GDM_DATA_PATH = "./data/gdm_6_fixed_test"
-PLA_DATA_PATH = "./data/base_plikHM_TTTEEE_lowl_lowE_lensing"
 
-# GDM_DATA_PATH = "/opt/project/output/gdm6/gdm_6_fixed_ends/gdm_6_fixed_ends"
-# PLA_DATA_PATH = "/opt/project/output/pla_data/base/plikHM_TTTEEE_lowl_lowE_lensing/base_plikHM_TTTEEE_lowl_lowE_lensing"
+GDM_DATA_PATH = "/opt/project/output/gdm6/gdm_6_fixed_ends/gdm_6_fixed_ends"
+PLA_DATA_PATH = "/opt/project/output/pla_data/base/plikHM_TTTEEE_lowl_lowE_lensing/base_plikHM_TTTEEE_lowl_lowE_lensing"
 gdm_samples = loadMCSamples(GDM_DATA_PATH, settings={"ignore_rows": 0.5})
 pla_samples = loadMCSamples(PLA_DATA_PATH, settings={"ignore_rows": 0.3})
 
