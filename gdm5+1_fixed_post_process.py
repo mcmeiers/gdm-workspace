@@ -15,11 +15,13 @@ OUTPUT_DIR = Path("/opt/project/output/gdm6/gdm_6_fixed_ends/gdm6_fixed_post")
 
 # In[15]:
 
+GDM_DATA_PATH = "./data/gdm_6_fixed_test"
+PLA_DATA_PATH = "./data/base_plikHM_TTTEEE_lowl_lowE_lensing"
 
-GDM_DATA_PATH = '/opt/project/output/gdm6/gdm_6_fixed_ends/gdm_6_fixed_ends' 
-PLA_DATA_PATH = '/opt/project/output/pla_data/base/plikHM_TTTEEE_lowl_lowE_lensing/base_plikHM_TTTEEE_lowl_lowE_lensing'
-gdm_samples = loadMCSamples(GDM_DATA_PATH, settings={'ignore_rows':0.5})
-pla_samples = loadMCSamples(PLA_DATA_PATH, settings={'ignore_rows':0.3})
+# GDM_DATA_PATH = "/opt/project/output/gdm6/gdm_6_fixed_ends/gdm_6_fixed_ends"
+# PLA_DATA_PATH = "/opt/project/output/pla_data/base/plikHM_TTTEEE_lowl_lowE_lensing/base_plikHM_TTTEEE_lowl_lowE_lensing"
+gdm_samples = loadMCSamples(GDM_DATA_PATH, settings={"ignore_rows": 0.5})
+pla_samples = loadMCSamples(PLA_DATA_PATH, settings={"ignore_rows": 0.3})
 
 
 # In[16]:
@@ -57,7 +59,6 @@ pla_best_fit_classy_input = {
 # In[19]:
 
 
-
 cosmo = classy.Class()
 cosmo.set(pla_best_fit_classy_input)
 cosmo.compute(["background"])
@@ -73,7 +74,6 @@ cosmo.empty()
 
 
 # In[20]:
-
 
 
 def classy_input_from_sample(params):
@@ -100,7 +100,7 @@ def classy_input_from_sample(params):
     }
 
 
-def get_delta_H_frac_and_omega_gdm_of_sample(sample_dict):
+def get_gdm_info_of_sample(sample_dict):
     classy_input = classy_input_from_sample(sample_dict)
     cosmo.set(classy_input)
     cosmo.compute(["background"])
@@ -109,32 +109,38 @@ def get_delta_H_frac_and_omega_gdm_of_sample(sample_dict):
         np.flip(cosmo.get_background()["H [1/Mpc]"]),
         s=0,
     )(delta_H_frac_z_samples)
+    Omega_gdm = (
+        cosmo.get_background()["(.)rho_gdm"] / cosmo.get_background()["(.)rho_tot"]
+    )
+    Omega_gdm_max = np.max(Omega_gdm)
+    z_c = cosmo.get_background()["z"][np.argmax(Omega_gdm)]
     Omega_gdm_samples = UnivariateSpline(
         np.flip(cosmo.get_background()["z"]),
-        np.flip(
-            cosmo.get_background()["(.)rho_gdm"] / cosmo.get_background()["(.)rho_tot"]
-        ),
+        np.flip(Omega_gdm),
         s=0,
     )(omega_gdm_z_samples)
+
     cosmo.struct_cleanup()
     cosmo.empty()
     return np.concatenate(
         (
             (H_samples - pla_best_fit_H_samples) / pla_best_fit_H_samples,
             Omega_gdm_samples,
-        )
+            np.array([Omega_gdm_max, z_c]),
+        ),
+        dtype=np.float32,
     )
 
 
 # In[ ]:
 
 
-derived_sample = np.zeros((gdm_samples.numrows, n_H_samples + n_omega_gdm_samples))
+derived_sample = np.zeros(
+    (gdm_samples.numrows, n_H_samples + n_omega_gdm_samples + 2), dtype=np.float32
+)
 
 for idx in range(gdm_samples.numrows):
-    derived_sample[idx, :] = get_delta_H_frac_and_omega_gdm_of_sample(
-        gdm_samples.getParamSampleDict(idx)
-    )
+    derived_sample[idx, :] = get_gdm_info_of_sample(gdm_samples.getParamSampleDict(idx))
 
 
 # In[ ]:
@@ -158,15 +164,14 @@ for idx in range(n_omega_gdm_samples):
         "$\Omega_\{gdm\}$" + f"({omega_gdm_z_samples[idx]:.1e})",
     )
 
+# In[ ]:
+
+gdm_samples.addDerived(
+    derived_sample[:, n_H_samples + idx + 1], "Omega_{gdm,max}", "$\Omega_\{gdm,max\}$"
+)
+gdm_samples.addDerived(derived_sample[:, n_H_samples + idx + 2], "z_c", "$z_c$")
 
 # In[ ]:
 
 
-gdm_samples.saveAsText('/opt/project/output/gdm6/gdm_6_fixed_ends/gdm_6_fixed_post_process')
-
-
-# In[ ]:
-
-
-
-
+gdm_samples.savePickle(OUTPUT_DIR)
