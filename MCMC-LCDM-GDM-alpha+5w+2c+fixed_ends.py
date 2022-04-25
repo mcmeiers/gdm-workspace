@@ -5,6 +5,8 @@ import src.gdmtools as gdmtools
 
 from cobaya.run import run
 
+from mpi4py import MPI
+
 # %% Define project name and output directory
 PROJECT_NAME = "gdm_alpha_5w_2c_fixed_ends"
 import os
@@ -131,6 +133,4 @@ cobaya_info = dict(
 
 # %%
 
-upd_info, mcmc = run(cobaya_info, test=True, force=True)
-
-# %%
+upd_info, mcmc = run(cobaya_info)
