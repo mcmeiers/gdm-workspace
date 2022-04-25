@@ -4,6 +4,7 @@ from pathlib import Path
 import src.gdmtools as gdmtools
 
 from cobaya.run import run
+from cobaya.log import LoggedError
 
 from mpi4py import MPI
 
@@ -132,5 +133,18 @@ cobaya_info = dict(
 )
 
 # %%
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
 
-upd_info, mcmc = run(cobaya_info)
+success = False
+try:
+    upd_info, mcmc = run(cobaya_info, resume=True)
+    success = True
+except LoggedError as err:
+    pass
+
+# Did it work? (e.g. did not get stuck)
+success = all(comm.allgather(success))
+
+if not success and rank == 0:
+    print("Sampling failed!")

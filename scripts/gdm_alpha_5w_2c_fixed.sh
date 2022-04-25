@@ -17,5 +17,5 @@
 #export OMP_PLACES=threads
 #export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-srun -n 4 shifter /opt/conda/bin/python MCMC-LCDM-GDM-alpha+5w+2c+fixed_ends
+srun -n 4 shifter /opt/conda/bin/python MCMC-LCDM-GDM-alpha+5w+2c+fixed_ends.py
 
