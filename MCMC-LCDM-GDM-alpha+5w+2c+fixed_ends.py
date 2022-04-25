@@ -132,5 +132,3 @@ cobaya_info = dict(
 # %%
 
 upd_info, mcmc = run(cobaya_info, test=True, force=True)
-
-# %%
