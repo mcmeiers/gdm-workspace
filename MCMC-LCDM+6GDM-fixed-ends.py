@@ -134,4 +134,18 @@ cobaya_info = dict(
 
 # %%
 
-upd_info, mcmc = run(cobaya_info, resume=True)
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+
+success = False
+try:
+    upd_info, mcmc = run(cobaya_info, resume=True)
+    success = True
+except LoggedError as err:
+    pass
+
+# Did it work? (e.g. did not get stuck)
+success = all(comm.allgather(success))
+
+if not success and rank == 0:
+    print("Sampling failed!")
