@@ -1,8 +1,14 @@
+# %%
 from __future__ import annotations
+from collections.abc import Callable, Collection, Sequence
+from functools import wraps
 from typing import Dict, Union, List
 import numpy as np
 from copy import copy
 from abc import ABC
+import inspect
+
+import classy
 
 
 from ruamel.yaml import YAML, yaml_object
@@ -10,6 +16,25 @@ from ruamel.yaml.comments import CommentedMap
 
 yaml = YAML(typ="safe")
 yaml.default_flow_style = None
+
+
+def make_log10a_knots_from_epochs(
+    log10a_epoch_endpoints: Sequence(float), n_knots_for_interval: Sequence(int)
+):
+    return [
+        float(x)
+        for x in np.concatenate(
+            tuple(
+                np.linspace(start, end, n_knots, endpoint=False)
+                for start, end, n_knots in zip(
+                    log10a_epoch_endpoints[:],
+                    log10a_epoch_endpoints[1:],
+                    n_knots_for_interval,
+                )
+            )
+            + (np.array([log10a_epoch_endpoints[-1]]),)
+        )
+    ]
 
 
 class CosmoModelSpaceComponent(ABC):
@@ -26,14 +51,23 @@ class wModel:
     """
 
     @staticmethod
-    def _range_from_filter(knot_x, range_filter, default_range=(-np.inf, np.inf)):
+    def _range_from_filter(
+        knot_x: float,
+        range_filter: Sequence(tuple[float, float]),
+        default_range: dict(str, float) = {"min": -np.inf, "max": np.inf},
+    ) -> tuple(float, float):
         knot_y_range = default_range
         for filter_start, range in range_filter:
             if knot_x >= filter_start:
                 knot_y_range = range
         return knot_y_range
 
-    def __init__(self, knots_log10a, fixed_knots=None, range_filter=None):
+    def __init__(
+        self,
+        free_knots_log10a: Sequence[float],
+        fixed_knots: Sequence[tuple(float, float)] = None,
+        range_filter: Sequence[tuple(float, float)] = None,
+    ) -> wModel:
         """
         TODO
 
@@ -41,7 +75,7 @@ class wModel:
             knots_log10a:: Sequence(float)
               A sequence of floats where the w(log10a) values will be set
               for the spline.
-            fixed_knots:: Sequence(tuple(2))
+            extra_fixed_knots:: Sequence(tuple(2))
               A sequence of tuples of the form (fixed_idx,fixed_w_val)
 
               fixed_idx::int
@@ -53,41 +87,66 @@ class wModel:
             fixed_knots = []
         if range_filter is None:
             range_filter = []
-        self.knots_log10a = tuple(knots_log10a)
-        self.fixed_knots = fixed_knots
-        self.n_knots = len(knots_log10a)
-        self.w_dim = self.n_knots - len(self.fixed_knots)
-        prefixed_w_vals = [0] * self.n_knots
-        for fixed_idx, fixed_val in self.fixed_knots:
-            prefixed_w_vals[fixed_idx] = fixed_val
-        var_knots_idx = set(range(self.n_knots)).difference(
-            {fixed_idx for (fixed_idx, _) in self.fixed_knots}
-        )
 
-        self.param_names = [f"w_{idx}" for idx in range(self.w_dim)]
-        for var_idx, param in zip(var_knots_idx, self.param_names):
-            prefixed_w_vals[var_idx] = param
-        # Create str of the form 'w_0,w_1,...' to form the correct argument signature of the w_vals fns
-        comma_separated_param_names = ",".join(map(str, self.param_names))
+        # store creation variables
+        self.free_knots_log10a = free_knots_log10a
+        self.fixed_knots = fixed_knots
+        self.range_filter = range_filter
+        #
+
+        self.w_dim = len(self.free_knots_log10a)
+        self.n_knots = self.w_dim + len(self.fixed_knots)
+
+        _log10a_param_pairs = []
+        self.free_params = {}
+
+        # The comma separated names of the parameters to be used to set the signature of the comma separated w_str to form the correct argument signature of the w_vals fns
+        _comma_separated_param_args = ""
+        for w_idx, log10a in enumerate(self.free_knots_log10a):
+            param = f"w_{w_idx}"
+            self.free_params[param] = {
+                "prior": wModel._range_from_filter(
+                    log10a,
+                    range_filter=self.range_filter,
+                    default_range={"min": -1, "max": 1},
+                ),
+                "drop": True,
+            }
+            _log10a_param_pairs.append((log10a, param))
+            _comma_separated_param_args += f"{param}, "
+
+        self.fixed_params = {}
+        _comma_separated_param_kwargs = ""
+        for w_idx, (log10a, w_val) in enumerate(self.fixed_knots):
+            param = f"w_fixed{w_idx}"
+            self.fixed_params[param] = {"value": w_val, "drop": True}
+            _log10a_param_pairs.append(
+                (
+                    log10a,
+                    param,
+                )
+            )
+            _comma_separated_param_kwargs += f"{param}={w_val},"
+
+        _log10a_param_pairs.sort()
+        self.knots_log10a, params_in_log10a_order = tuple(zip(*_log10a_param_pairs))
+
+        # The comma separated parameter keys ordered by log10a
+        comma_separated_params_log10a_ordered = ", ".join(params_in_log10a_order)
+
         # Create str of either the fixed value or the variable name with comma separation, use for output of w_val fns
-        comma_separated_w_vals = ",".join(map(str, prefixed_w_vals))
         self.knots_w_vals = eval(
-            f"lambda {comma_separated_param_names}:[{comma_separated_w_vals}]"
+            f"lambda {_comma_separated_param_args}{_comma_separated_param_kwargs}: [{comma_separated_params_log10a_ordered}]"
         )
         self.classy_fmt_knots_w_vals = eval(
-            f"lambda {comma_separated_param_names}:','.join(map(str,[{comma_separated_w_vals}]))"
+            f"lambda {_comma_separated_param_args}{_comma_separated_param_kwargs}: ','.join(map(str,[{comma_separated_params_log10a_ordered}]))"
         )
-        self.range_filter = range_filter
-        self.range_of_param = {}
-        for param, log10idx in zip(self.param_names, var_knots_idx):
-            self.range_of_param[param] = wModel._range_from_filter(
-                self.knots_log10a[log10idx],
-                self.range_filter,
-                default_range={"min": -1, "max": 1},
-            )
 
-        self.w_mins = [self.range_of_param[param]["min"] for param in self.param_names]
-        self.w_maxes = [self.range_of_param[param]["max"] for param in self.param_names]
+        self.derived_params = {
+            "gdm_w_vals": {"value": self.classy_fmt_knots_w_vals, "derived": False}
+        }
+
+        self.params = {**self.free_params, **self.fixed_params, **self.derived_params}
 
     @classmethod
     def to_yaml(cls, representer, instance: wModel):
@@ -123,41 +182,28 @@ class gdmModel(CosmoModelSpaceComponent):
 
         self.w_model = w_model
         self.alpha = alpha
-
-        self.params = {
-            "gdm_alpha": {"prior": self.alpha, "latex": "\\alpha_{gdm}"},
-            **{
-                w_param: {"prior": self.w_model.range_of_param[w_param], "drop": True}
-                for w_param in self.w_model.param_names
-            },
-            "gdm_w_vals": {
-                "value": self.w_model.classy_fmt_knots_w_vals,
-                "derived": False,
-            },
-        }
-
-        self.z_alpha = z_alpha
-        self.fixed_settings = {
-            "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
-            "gdm_z_alpha": self.z_alpha,
-            "gdm_interpolation_order": 1,
-        }
         self.c_eff2 = c_eff2
         self.c_vis2 = c_vis2
-        var_or_fixed_params = ["c_eff2", "c_vis2"]
-        for param in var_or_fixed_params:
-            if isinstance(self.__getattribute__(param), (int, float)):
-                self.fixed_settings[f"gdm_{param}"] = self.__getattribute__(param)
-            else:
-                self.params[f"gdm_{param}"] = self.__getattribute__(param)
+        self.z_alpha = z_alpha
+
+        self.params = {
+            "gdm_alpha": {**self.alpha, "latex": "\\alpha_{gdm}"},
+            **w_model.params,
+            "gdm_c_eff2": self.c_eff2,
+            "gdm_c_vis2": self.c_vis2,
+            "gdm_z_alpha": self.z_alpha,
+        }
+
+        self.fixed_settings = {
+            "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
+            "gdm_interpolation_order": 1,
+        }
 
     @classmethod
     def to_yaml(cls, representer, instance: wModel):
         # positional arguments first
-        input_param_names = cls.__init__.__code__.co_varnames[
-            1 : cls.__init__.__code__.co_argcount
-        ]
-        input_params = {k: instance.__dict__[k] for k in input_param_names}
+        input_param_names = list(inspect.signature(cls.__init__).parameters.keys())
+        input_params = {k: instance.__dict__[k] for k in input_param_names[1:]}
         return representer.represent_mapping(cls.yaml_tag, input_params)
 
     @classmethod
@@ -166,7 +212,8 @@ class gdmModel(CosmoModelSpaceComponent):
         return cls(**dict_representation)
 
 
-class CosmoModel(object):
+# %%
+class ModelParameters:
 
     # instance attributes
     def __init__(
@@ -182,25 +229,44 @@ class CosmoModel(object):
         if vals_of_fixed_params is None:
             vals_of_fixed_params = {}
         self.dims_of_input_params = copy.deepcopy(dims_of_input_params)
+        self._1d_params = [k for k, v in self.dims_of_input_params.items() if v == 1]
         self.input_param_names = list(self.dims_of_input_params.keys())
-        self.input_splits = np.cumsum(
-            [dims_of_input_params[in_param] for in_param in self.input_param_names[:-1]]
+        self.model_param_names = copy.copy(
+            self.input_param_names
+        )  # add input parameters to model parameters
+
+        # Parameter values will be a concatenate vector of their values
+        # the index to split alone will be the cumulative sum of dimensions
+        temp_cumulative_sum = np.cumsum(
+            [dims_of_input_params[in_param] for in_param in self.input_param_names]
         )
-        self.total_input_dim = (
-            self.input_splits[-1]
-            + self.dims_of_input_params[self.input_param_names[-1]]
-        )
+        self._input_splits = temp_cumulative_sum[:-1]
+        self.total_input_dim = temp_cumulative_sum[-1]
 
         self.vals_of_fixed_params = copy.deepcopy(vals_of_fixed_params)
+        self.model_param_names += list(
+            self.vals_of_fixed_params.keys()
+        )  # add input parameters to model parameters
 
         self.fn_of_dependent_params = copy.deepcopy(fn_of_dependent_params)
-        self.dependent_param_of_level = None
+        self._dependent_param_and_required_of_level = {}
+        if (
+            self.fn_of_dependent_params
+        ):  # if there are dependent parameters find order they need to be called in
+            _requested_params_of_dependent_params = {
+                param: ModelParameters._get_requested_arguments(
+                    fn, self.fn_of_dependent_params.keys()
+                )
+                for param, fn in fn_of_dependent_params.items()
+            }
+            self._dependent_param_and_required_of_level = (
+                ModelParameters._find_order_to_eval_dependant(
+                    self.model_param_names, _requested_params_of_dependent_params
+                )
+            )
 
-        self.model_param_names = (
-            self.input_param_names
-            + list(self.vals_of_fixed_params.keys())
-            + list(self.fn_of_dependent_params.keys())
-        )
+        self.model_param_names += list(self.fn_of_dependent_params.keys())
+
         # defaults to all params if class_input_params is not provided.
         self.class_input_params = class_input_params
         if self.class_input_params is None:
@@ -210,74 +276,100 @@ class CosmoModel(object):
     def get_vals_of_model_params(self, input_vals):
 
         vals_of_input_parameters = dict(
-            zip(self.input_param_names, np.split(input_vals, self.input_splits))
+            zip(self.input_param_names, np.split(input_vals, self._input_splits))
         )
+        for param in self._1d_params:
+            vals_of_input_parameters[param] = vals_of_input_parameters[param].item()
         vals_of_model_params = {**self.vals_of_fixed_params, **vals_of_input_parameters}
 
-        if self.dependent_param_of_level is None:
-            return self._initialize_get_vals_of_model_params(vals_of_model_params)
+        for (
+            dependent_params_and_requested_params
+        ) in self._dependent_param_and_required_of_level:
+            for (
+                dependent_param,
+                requested_params,
+            ) in dependent_params_and_requested_params:
+                vals_of_requested_params = {
+                    param: vals_of_model_params[param] for param in requested_params
+                }
+                vals_of_model_params[dependent_param] = self.fn_of_dependent_params[
+                    dependent_param
+                ](**vals_of_requested_params)
 
-        for level in range(1, self._max_fn_level_ + 1):
-            level_params = self.dependent_param_of_level[level]
-            vals_of_model_params = {
-                **vals_of_model_params,
-                **dict(
-                    zip(
-                        level_params,
-                        [
-                            self.fn_of_dependent_params[param](**vals_of_model_params)
-                            for param in level_params
-                        ],
-                    )
-                ),
-            }
         return vals_of_model_params
 
     def get_vals_of_variable_parameters(self, input_vals):
 
         vals_of_model_params = self.get_vals_of_model_params(input_vals)
 
-        vals_of_variable_params = {
+        return {
             k: v
             for k, v in vals_of_model_params.items()
             if k not in self.vals_of_fixed_params
         }
-        return vals_of_variable_params
 
-    def _initialize_get_vals_of_model_params(self, vals_of_model_params):
-        self.dependent_param_of_level = {}
-        n_dependent_vars = len(self.fn_of_dependent_params.keys())
-        n_level_assigned_dependent_params = 0
-        level = 1
-        current_level_vars = list(self.fn_of_dependent_params.keys())
-        next_level_vars = []
-        current_level_values_of_vars = {}
-        while n_level_assigned_dependent_params < n_dependent_vars:
-            self.dependent_param_of_level[level] = []
-            for var in current_level_vars:
-                try:
-                    current_level_values_of_vars[var] = self.fn_of_dependent_params[
-                        var
-                    ](**vals_of_model_params)
-                    self.dependent_param_of_level[level] += [var]
-                    n_level_assigned_dependent_params += 1
-                except TypeError:
-                    next_level_vars += [var]
-            assert bool(
-                current_level_values_of_vars
-            ), "Variable collection unsolvable check for closure and loops"
-            vals_of_model_params = {
-                **vals_of_model_params,
-                **current_level_values_of_vars,
-            }
-            current_level_vars = next_level_vars
-            current_level_values_of_vars = {}
-            next_level_vars = []
-            level += 1
+    @staticmethod
+    def _get_requested_arguments(
+        fn: Callable, dependent_params: Collection
+    ) -> set[str]:
+        return {
+            param_name
+            for param_name, param_info in inspect.signature(fn).parameters.items()
+            if param_info.default is inspect.Parameter.empty
+            or param_name in dependent_params
+        }
 
-        self._max_fn_level_ = level - 1
+    @staticmethod
+    def _find_order_to_eval_dependant(
+        provided_params: list[str],
+        requested_params_of_dependent_params: dict[str, set[str]],
+    ) -> dict[int, dict[str, set[str]]]:
+        """Forms an ordered dictionary which informs the order the dependant parameters must be evaluated so each gets their required arguments
 
-        return vals_of_model_params
+        Args:
+            provided_params (list[str]): The parameters that fixed in model or are inputs to be provided
+            requested_params_of_dependent_params (dict[str,set[str]]): A dictionary of the required arguments for each dependent parameter
+
+        Returns:
+            list[list[tuple[str,set[str]]]]: Each entry is the list of dependent parameters only using input, fixed or dependent parameters of an earlier entry
+        """
+        unplaced_params_and_uncalculated_arguments = copy.deepcopy(
+            requested_params_of_dependent_params
+        )
+        current_level: int = 1
+        dependent_param_of_level: list[list[str]] = [set(provided_params)]
+        while unplaced_params_and_uncalculated_arguments:
+            newly_calculable_params = []
+            # remove last level parameters and see if you can then calculate parameter
+            for (
+                param,
+                uncalculated_arguments,
+            ) in unplaced_params_and_uncalculated_arguments.items():
+                uncalculated_arguments.difference_update(
+                    set(dependent_param_of_level[current_level - 1])
+                )
+                if not uncalculated_arguments:
+                    newly_calculable_params.append(param)
+            # if no newly calculable parameters found raise issue
+            assert newly_calculable_params, (
+                "Dependant parameters failed to close, check their function arguments and ensure closure of relations"
+                + f"remaining: {unplaced_params_and_uncalculated_arguments}, found:{dependent_param_of_level}"
+            )
+            # remove placed parameters
+            for param in newly_calculable_params:
+                del unplaced_params_and_uncalculated_arguments[param]
+            dependent_param_of_level.append(newly_calculable_params)
+            current_level += 1
+
+        # remove provided_params
+        dependent_param_of_level.pop(0)
+        return [
+            [
+                (param, requested_params_of_dependent_params[param])
+                for param in dependent_params
+            ]
+            for dependent_params in dependent_param_of_level
+        ]
 
     def get_class_input(self, input_vals):
         numeric_vals_of_model_params = self.get_vals_of_model_params(input_vals)
@@ -327,7 +419,7 @@ class CosmoModel(object):
 
 
 class CosmoModel(object):
-    def __init__(self, model_params: ModelParameters):
+    def __init__(self, model_params):
 
         self.model_params = model_params
         self.cosmo = classy.Class()
@@ -345,3 +437,8 @@ class CosmoModel(object):
         self.cosmo.compute()
         if derived_params is not None:
             self.cosmo.get_current_derived_parameters(derived_params)
+
+
+# %%
+
+# %%
