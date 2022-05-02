@@ -27,7 +27,9 @@ RUN /opt/conda/bin/conda install -c conda-forge \
     cython        \
     scipy         \
     ipython       \
+    ruamel.yaml   \
     ipykernel
+
 
 RUN python -m pip install cobaya --upgrade
 RUN python -m pip install getdist
@@ -76,17 +78,12 @@ RUN python -m cobaya install -p /software/cobaya_packages planck_2018_lowl.EE
 
 # install CLASS
 WORKDIR /software/cobaya_packages/code
-RUN wget -O class_public.zip https://github.com/mcmeiers/class_public/archive/refs/heads/designer.zip
+RUN wget -O class_public.zip https://github.com/mcmeiers/class_public/archive/refs/heads/designer/5b81674.zip
 RUN unzip class_public.zip
 RUN rm class_public.zip
 WORKDIR /software/cobaya_packages/code/class_public-designer/
 RUN make -j 4 PYTHON=python
 
-RUN /opt/conda/bin/conda install -c conda-forge \
-    click \
-    ruamel.yaml \
-    pytest      \
-    jupyter
 
 WORKDIR /opt/project
 RUN mkdir output
