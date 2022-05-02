@@ -54,7 +54,7 @@ with open(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml", "w") as f:
 
 lcdm_params = {
     "logA": {
-        "prior": {"min": 1.61, "max": 3.91},
+        "prior": {"min": 2.98, "max": 3.1},
         "ref": {"dist": "norm", "loc": 3.05, "scale": 0.001},
         "proposal": 0.001,
         "latex": "\\log(10^{10} A_\\mathrm{s})",
@@ -62,13 +62,13 @@ lcdm_params = {
     },
     "A_s": {"value": "lambda logA: 1e-10*np.exp(logA)", "latex": "A_\\mathrm{s}"},
     "n_s": {
-        "prior": {"min": 0.8, "max": 1.2},
+        "prior": {"min": 0.94, "max": 1.0},
         "ref": {"dist": "norm", "loc": 0.965, "scale": 0.004},
         "proposal": 0.002,
         "latex": "n_\\mathrm{s}",
     },
     "theta_s_1e2": {
-        "prior": {"min": 0.5, "max": 10},
+        "prior": {"min": 1.03, "max": 1.05},
         "ref": {"dist": "norm", "loc": 1.0416, "scale": 0.0004},
         "proposal": 0.0002,
         "latex": "100\\theta_\\mathrm{s}",
@@ -78,13 +78,13 @@ lcdm_params = {
     "H0": {"min": 60, "max": 80, "latex": "H_0"},
     "sigma8": {"latex": "\sigma_8"},
     "omega_b": {
-        "prior": {"min": 0.005, "max": 0.1},
+        "prior": {"min": 0.02, "max": 0.025},
         "ref": {"dist": "norm", "loc": 0.0224, "scale": 0.0001},
         "proposal": 0.0001,
         "latex": "\\Omega_\\mathrm{b} h^2",
     },
     "omega_cdm": {
-        "prior": {"min": 0.001, "max": 0.99},
+        "prior": {"min": 0.11, "max": 0.13},
         "ref": {"dist": "norm", "loc": 0.12, "scale": 0.001},
         "proposal": 0.0005,
         "latex": "\\Omega_\\mathrm{c} h^2",
