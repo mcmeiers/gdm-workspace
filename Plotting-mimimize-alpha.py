@@ -1,29 +1,28 @@
 # %%
 from pathlib import Path
+
 import numpy as np
 
-import src.gdmtools as gdmtools
+import src.gdmtools as gdm
 
 from cobaya.run import run
-from cobaya.log import LoggedError
+from cobaya.model import get_model
 
+import matplotlib.pyplot as plt
 
-from mpi4py import MPI
-
-# %% Define project name and output directory
+import pandas as pd
 
 PROJECT_NAME = "gdm_alpha_5w_2c_fixed_ends"
 PROJECT_DIR = Path.cwd() / PROJECT_NAME
 
-CHAIN_DIR = PROJECT_DIR / "chains/"
-(CHAIN_DIR / "").mkdir(exist_ok=True, parents=True)
-CLASS_PATH = "/home/mmeiers/Projects/gdm_cosmology/code/my-class"
 
-# %% laod gdm model
+OUTPUT_DIR = PROJECT_DIR / "output/sampler"
+OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
 
-gdm_model = gdmtools.yaml.load(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml")
+CLASS_PATH = "/home/mcmeiers/Projects/gdm_cosmology/code/my_class"
 
-# %% lcdm model params
+
+gdm_model = gdm.yaml.load(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml")
 
 lcdm_params = {
     "logA": {
@@ -33,7 +32,12 @@ lcdm_params = {
         "latex": "\\log(10^{10} A_\\mathrm{s})",
         "drop": True,
     },
-    "A_s": {"value": "lambda logA: 1e-10*np.exp(logA)", "latex": "A_\\mathrm{s}"},
+    "A_s": {
+        "value": "lambda logA: 1e-10*np.exp(logA)",
+        "min": 1e-10 * np.exp(1.61),
+        "max": 1e-10 * np.exp(3.91),
+        "latex": "A_\\mathrm{s}",
+    },
     "n_s": {
         "prior": {"min": 0.8, "max": 1.2},
         "ref": {"dist": "norm", "loc": 0.965, "scale": 0.004},
@@ -72,8 +76,6 @@ lcdm_params = {
     "z_gdm_max": None,
 }
 
-# %% setup gdm_likelihood, it has a trivial likelihood but Omega_gdm_max and z_gdm_max are computed here
-
 
 def gdm_likelihood(_self):
     bg = _self.provider.get_CLASS_background()
@@ -88,21 +90,17 @@ def gdm_likelihood(_self):
     )
 
 
-# %%
-
 cobaya_info = dict(
     theory={
         "classy": {
             "extra_args": {
                 **gdm_model.fixed_settings,
                 "non_linear": "hmcode",
-                "l_max_scalars": 5000,
             },
-            # "path": str(CLASS_PATH),
-            #'provide': {'get_CLASS_background': None},
+            "path": str(CLASS_PATH),
         }
     },
-    params={**lcdm_params, **gdm_model.params},
+    params=lcdm_params | gdm_model.params,
     likelihood={
         "planck_2018_lowl.TT": None,
         "planck_2018_lowl.EE": None,
@@ -114,40 +112,9 @@ cobaya_info = dict(
             "requires": {"CLASS_background": None},
         },
     },
-    sampler=dict(
-        mcmc={
-            "drag": True,
-            "oversample_power": 0.4,
-            "proposal_scale": 1.9,
-            "covmat": "auto",
-            "Rminus1_stop": 0.01,
-            "Rminus1_cl_stop": 0.025,
-        }
-    ),
-    output=str(CHAIN_DIR / PROJECT_NAME),
-    resume=True,
 )
 
-# %%
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
 
-if rank == 0:
-    with open(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml", "w") as f:
-        gdmtools.yaml.dump(gdm_model, f)
+model = get_model(cobaya_info)
 
-success = False
-
-try:
-    upd_info, mcmc = run(cobaya_info, resume=True)
-    success = True
-except LoggedError as err:
-    pass
-
-# Did it work? (e.g. did not get stuck)
-success = all(comm.allgather(success))
-
-if not success and rank == 0:
-    print("Sampling failed!")
-
-# %%
+df = pd.read_csv("alpha_min_pset.csv")

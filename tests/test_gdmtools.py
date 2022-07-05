@@ -20,14 +20,14 @@ class Test_wModel:
     def test_wModel_init_free_params_keys(self):
         w_mdl = gdmtools.wModel([-1, 0])
         expected_names = ["w_0", "w_1"]
-        assert list(w_mdl.free_params.keys()) == expected_names
+        assert list(w_mdl.sampled_params.keys()) == expected_names
 
     def test_wModel_init_free_params_values(self):
         w_mdl = gdmtools.wModel([-1, 0])
         expected_params = dict(
             zip(["w_0", "w_1"], ({"prior": {"min": -1, "max": 1}, "drop": True},) * 2)
         )
-        assert w_mdl.free_params == expected_params
+        assert w_mdl.sampled_params == expected_params
 
     def test_wModel_init_free_params_values_with_range_filter(self):
         range_filter = ((-1 / 2.0, {"min": -1 / 2, "max": 1 / 2}),)
@@ -36,12 +36,12 @@ class Test_wModel:
             "w_0": {"prior": {"min": -1, "max": 1}, "drop": True},
             "w_1": {"prior": {"min": -1 / 2, "max": 1 / 2}, "drop": True},
         }
-        assert w_mdl.free_params == expected_params
+        assert w_mdl.sampled_params == expected_params
 
     def test_wModel_init_free_params_values_with_fixed(self):
         w_mdl = gdmtools.wModel([-1], fixed_knots=[(0, 1)])
         expected_params = {"w_0": {"prior": {"min": -1, "max": 1}, "drop": True}}
-        assert w_mdl.free_params == expected_params
+        assert w_mdl.sampled_params == expected_params
 
     def test_wModel_init_fixed_params_values(self):
         w_mdl = gdmtools.wModel([-1], fixed_knots=[(0, 1)])

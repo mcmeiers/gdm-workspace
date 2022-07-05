@@ -8,7 +8,7 @@ from copy import copy
 from abc import ABC
 import inspect
 
-import classy
+import matplotlib.pyplot as plt
 
 
 from ruamel.yaml import YAML, yaml_object
@@ -98,13 +98,13 @@ class wModel:
         self.n_knots = self.w_dim + len(self.fixed_knots)
 
         _log10a_param_pairs = []
-        self.free_params = {}
+        self.sampled_params = {}
 
         # The comma separated names of the parameters to be used to set the signature of the comma separated w_str to form the correct argument signature of the w_vals fns
         _comma_separated_param_args = ""
         for w_idx, log10a in enumerate(self.free_knots_log10a):
             param = f"w_{w_idx}"
-            self.free_params[param] = {
+            self.sampled_params[param] = {
                 "prior": wModel._range_from_filter(
                     log10a,
                     range_filter=self.range_filter,
@@ -146,7 +146,11 @@ class wModel:
             "gdm_w_vals": {"value": self.classy_fmt_knots_w_vals, "derived": False}
         }
 
-        self.params = {**self.free_params, **self.fixed_params, **self.derived_params}
+        self.params = {
+            **self.sampled_params,
+            **self.fixed_params,
+            **self.derived_params,
+        }
 
     @classmethod
     def to_yaml(cls, representer, instance: wModel):
@@ -191,12 +195,12 @@ class gdmModel(CosmoModelSpaceComponent):
             **w_model.params,
             "gdm_c_eff2": self.c_eff2,
             "gdm_c_vis2": self.c_vis2,
-            "gdm_z_alpha": self.z_alpha,
         }
 
         self.fixed_settings = {
             "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
             "gdm_interpolation_order": 1,
+            "gdm_z_alpha": self.z_alpha,
         }
 
     @classmethod
@@ -418,27 +422,55 @@ class ModelParameters:
 # %% CosmoModel Object Definition
 
 
-class CosmoModel(object):
-    def __init__(self, model_params):
+# class CosmoModel(object):
+#     def __init__(self, model_params):
 
-        self.model_params = model_params
-        self.cosmo = classy.Class()
+#         self.model_params = model_params
+#         self.cosmo = classy.Class()
 
-    def make_sample(self, input_vals, derived_params=None, post_process=None):
+#     def make_sample(self, input_vals, derived_params=None, post_process=None):
 
-        classy_output_settings = {
-            "output": "tCl,pCl,lCl",
-            "lensing": "yes",
-            "l_max_scalars": 2700,
-        }
-        self.cosmo.set(
-            {**self.model_params.get_class_input(input_vals), **classy_output_settings}
-        )
-        self.cosmo.compute()
-        if derived_params is not None:
-            self.cosmo.get_current_derived_parameters(derived_params)
+#         classy_output_settings = {
+#             "output": "tCl,pCl,lCl",
+#             "lensing": "yes",
+#             "l_max_scalars": 2700,
+#         }
+#         self.cosmo.set(
+#             {**self.model_params.get_class_input(input_vals), **classy_output_settings}
+#         )
+#         self.cosmo.compute()
+#         if derived_params is not None:
+#             self.cosmo.get_current_derived_parameters(derived_params)
 
 
-# %%
+# %% Ploting Utilities
+
+
+def plot_Cls(cls_of_mdl, ell_min=2, ell_max=2508, modes=("tt", "te", "ee"), axs=None):
+    if axs is None:
+        f, axs = plt.subplots(len(modes), sharex=True, figsize=(14, 8))
+        f.subplots_adjust(hspace=0)
+
+    if len(modes) == 1:
+        axs = [axs]
+
+    assert len(modes) == len(axs)
+    assert ell_min < ell_max
+
+    for label, cls in cls_of_mdl.items():
+        idx_min = np.where(cls["ell"] == ell_min)[0]
+        idx_max = np.where(cls["ell"] == ell_max)[0]
+        ells = cls["ell"][idx_min : idx_max + 1]
+        for mode, ax in zip(modes, axs):
+            ax.plot(ells, cls[mode][idx_min : idx_max + 1], label=label)
+            ax.set_ylabel(
+                r"$\ell(\ell+1)/(2\pi)\,C^" + str(mode) + "_\ell\;(\mu \mathrm{K}^2)$"
+            )
+
+    if len(modes) == 1:
+        axs = axs[0]
+
+    return axs
+
 
 # %%

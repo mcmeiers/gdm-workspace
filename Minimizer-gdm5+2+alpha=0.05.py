@@ -1,29 +1,44 @@
-# %%
-from pathlib import Path
-import numpy as np
+# %% import statements
+from __future__ import annotations
+from collections.abc import Callable, Collection
 
-import src.gdmtools as gdmtools
 
-from cobaya.run import run
-from cobaya.log import LoggedError
-
+import inspect
+import copy
+import itertools as it
 
 from mpi4py import MPI
 
-# %% Define project name and output directory
+from rich.console import Console
+from pathlib import Path
+
+import h5py
+
+import os
+import itertools as it
+
+import numpy as np
+
+import classy
+
+import src.gdmtools as gdm
+
+# %% initialize output format
 
 PROJECT_NAME = "gdm_alpha_5w_2c_fixed_ends"
 PROJECT_DIR = Path.cwd() / PROJECT_NAME
 
-CHAIN_DIR = PROJECT_DIR / "chains/"
-(CHAIN_DIR / "").mkdir(exist_ok=True, parents=True)
+OUTPUT_DIR = PROJECT_DIR / "output/sampler"
+OUTPUT_DIR.mkdir(exist_ok=True, parents=True)
+
 CLASS_PATH = "/home/mmeiers/Projects/gdm_cosmology/code/my-class"
 
-# %% laod gdm model
+CONSOLE = Console()
 
-gdm_model = gdmtools.yaml.load(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml")
 
-# %% lcdm model params
+# %%
+gdm_model = gdm.yaml.load(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml")
+# %% initialized lcdm sampled parameters
 
 lcdm_params = {
     "logA": {
@@ -33,7 +48,12 @@ lcdm_params = {
         "latex": "\\log(10^{10} A_\\mathrm{s})",
         "drop": True,
     },
-    "A_s": {"value": "lambda logA: 1e-10*np.exp(logA)", "latex": "A_\\mathrm{s}"},
+    "A_s": {
+        "value": "lambda logA: 1e-10*np.exp(logA)",
+        "min": 1e-10 * np.exp(1.61),
+        "max": 1e-10 * np.exp(3.91),
+        "latex": "A_\\mathrm{s}",
+    },
     "n_s": {
         "prior": {"min": 0.8, "max": 1.2},
         "ref": {"dist": "norm", "loc": 0.965, "scale": 0.004},
@@ -114,40 +134,20 @@ cobaya_info = dict(
             "requires": {"CLASS_background": None},
         },
     },
-    sampler=dict(
-        mcmc={
-            "drag": True,
-            "oversample_power": 0.4,
-            "proposal_scale": 1.9,
-            "covmat": "auto",
-            "Rminus1_stop": 0.01,
-            "Rminus1_cl_stop": 0.025,
-        }
-    ),
-    output=str(CHAIN_DIR / PROJECT_NAME),
-    resume=True,
+    sampler={"minimize": None},
+    debug=True,
+    output=PROJECT_DIR / PROJECT_NAME,
 )
 
+cobaya_info["params"].update({"gdm_alpha": 0.04})
+
 # %%
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
 
-if rank == 0:
-    with open(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml", "w") as f:
-        gdmtools.yaml.dump(gdm_model, f)
 
-success = False
+from cobaya.run import run
 
-try:
-    upd_info, mcmc = run(cobaya_info, resume=True)
-    success = True
-except LoggedError as err:
-    pass
+updated_info, sampler = run(cobaya_info)
 
-# Did it work? (e.g. did not get stuck)
-success = all(comm.allgather(success))
-
-if not success and rank == 0:
-    print("Sampling failed!")
+# %%
 
 # %%
