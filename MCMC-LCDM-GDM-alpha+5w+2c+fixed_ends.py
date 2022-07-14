@@ -70,6 +70,7 @@ lcdm_params = {
     "tau_reio": {"latex": "\\tau_\\mathrm{reio}"},
     "Omega_gdm_max": None,
     "z_gdm_max": None,
+    **{f'H_{z}':}
 }
 
 # %% setup gdm_likelihood, it has a trivial likelihood but Omega_gdm_max and z_gdm_max are computed here

@@ -182,14 +182,14 @@ class gdmModel(CosmoModelSpaceComponent):
     yaml_tag = "!gdmModel"
     """TODO"""
 
-    def __init__(self, w_model, alpha, c_eff2=0, c_vis2=0, z_alpha=0):
+    def __init__(self, w_model, alpha, c_eff2=0, c_vis2=0, z_alpha=0, has_NAP=True):
 
         self.w_model = w_model
         self.alpha = alpha
         self.c_eff2 = c_eff2
         self.c_vis2 = c_vis2
         self.z_alpha = z_alpha
-
+        self.has_NAP = has_NAP
         self.params = {
             "gdm_alpha": {**self.alpha, "latex": "\\alpha_{gdm}"},
             **w_model.params,
@@ -201,6 +201,7 @@ class gdmModel(CosmoModelSpaceComponent):
             "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
             "gdm_interpolation_order": 1,
             "gdm_z_alpha": self.z_alpha,
+            "nap": has_NAP,
         }
 
     @classmethod

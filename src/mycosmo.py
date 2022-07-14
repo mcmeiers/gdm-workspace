@@ -4,20 +4,53 @@ import copy
 import classy
 
 import numpy as np
+import xarray as xr
 
 import matplotlib.pyplot as plt
 
-from pathlib import Path
+import sys
 import os
+import git
+from pathlib import Path
 
-from pyrsistent import m
+
 from functools import reduce
+
+REPO_DIR = Path(git.Repo(".", search_parent_directories=True).working_tree_dir)
+PACKAGE_DIR = Path(os.path.join(os.path.dirname(__file__)))
+DATA_DIR = Path.resolve(PACKAGE_DIR / "../data/")
 
 # %% ploting utilities
 
 
-PACKAGE_DIR = Path(os.path.join(os.path.dirname(__file__)))
-DATA_DIR = Path.resolve(PACKAGE_DIR / "../data/")
+def _load_planck18_data():
+    DATA_DIR = REPO_DIR / "data"
+    plk18_data_dir = DATA_DIR / "plk18_spectra/"
+
+    modes = ["tt", "te", "ee"]
+    data_sets = []
+    for mode in modes:
+        data = np.loadtxt(
+            plk18_data_dir / f"COM_PowerSpect_CMB-{mode.upper()}-full_R3.01.txt"
+        )
+        data_sets.append(
+            xr.Dataset(
+                {
+                    "cl": xr.DataArray(
+                        data[:, 1], dims="ell", coords={"ell": data[:, 0]}
+                    ),
+                    "var_cl": xr.DataArray(
+                        data[:, 2:],
+                        dims=("ell", "var_dir"),
+                        coords={"ell": data[:, 0], "var_dir": ["-", "+"]},
+                    ),
+                }
+            )
+        )
+    return xr.concat(data_sets, dim=xr.Variable("mode", modes))
+
+
+planck18_data = _load_planck18_data()
 
 
 def plot_Cls_against_planck18(
@@ -38,13 +71,13 @@ def plot_Cls_against_planck18(
     assert ell_min < ell_max
 
     for mode, ax in zip(modes, axs):
-        data = np.loadtxt(
-            DATA_DIR / "planck" / f"COM_PowerSpect_CMB-{mode.upper()}-full_R3.01.txt"
+        ax.errorbar(
+            planck18_data.ell.loc[ell_min : ell_max + 1],
+            planck18_data.cl.loc[mode, ell_min : ell_max + 1],
+            yerr=planck18_data.var_cl.loc[mode, ell_min : ell_max + 1].T,
         )
-        ell_mask = (data[:, 0] >= ell_min) & (data[:, 0] <= ell_max)
-        ax.errorbar(data[ell_mask, 0], data[ell_mask, 1], yerr=data[ell_mask, 2:].T)
 
-    labels = []
+    labels = ["planck18"]
     for mdl, cls in cls_of_mdl.items():
         ell_mask = (cls["ell"] >= ell_min) & (cls["ell"] <= ell_max)
         ells = cls["ell"][ell_mask]
@@ -69,6 +102,7 @@ def plot_residuals_Cls_from_planck18(
     ell_min=2,
     ell_max=2508,
     modes=("tt", "te", "ee"),
+    spacing=1,
     fig=None,
 ):
 
@@ -84,72 +118,27 @@ def plot_residuals_Cls_from_planck18(
     assert len(modes) == len(axs)
     assert ell_min < ell_max
 
-    ref_ells = {}
-    ref_cl = {}
-    var_cls = {}
-    for mode in modes:
-        data = np.loadtxt(
-            DATA_DIR / "planck" / f"COM_PowerSpect_CMB-{mode.upper()}-full_R3.01.txt"
+    for mode, ax in zip(modes, axs):
+        ax.fill_between(
+            x=planck18_data.ell.loc[ell_min : ell_max + 1],
+            y1=planck18_data.var_cl.loc[mode, ell_min : ell_max + 1, "+"],
+            y2=-planck18_data.var_cl.loc[mode, ell_min : ell_max + 1, "-"],
+            alpha=0.3,
         )
-        ref_ells[mode] = data[:, 0]
-        ref_cl[mode] = data[:, 1]
-        var_cls[f'-{mode}'] = data[:, 2]
-        var_cls[f'+{mode}'] = data[:, 3]
-    
-    res_factor = {}
-    ell_masks = {}
-    for mode in modes:
-        if mode[0]==mode[1]:
-            ell_mask = (ref_ells[mode] >= ell_min) & (ref_ells[mode] <= ell_max)
-            ell_masks[mode] = ell_mask
-            ref_ells[mode] = ref_ells[mode][ell_mask]
-            ref_cl[mode] = ref_cl[mode][ell_mask]
-            var_cls[f'-{mode}'] = var_cls[f'-{mode}'][ell_mask]
-            var_cls[f'+{mode}'] = var_cls[f'+{mode}'][ell_mask] 
-            res_factor[mode]= 1/ref_cl[mode]
-        else:
-            common_ell = reduce(np.intersect1d,(ref_ells[mode],ref_ells[mode[0]+ mode[0]],ref_ells[mode[1]+ mode[1]]))
-            common_ell = common_ell[(common_ell >= ell_min) & (common_ell <= ell_max)]
-            ref_ells[mode], ell_masks[mode], _ = np.intersect1d(ref_ells[mode],common_ell,return_indices=True)
-            ell_mask1 = np.in1d(ref_ells[mode[0]+ mode[0]],common_ell)
-            ell_mask2 = np.in1d(ref_ells[mode[1]+ mode[1]],common_ell)
-            res_factor[mode]= 1/(ref_cl[mode[0]+ mode[0]][ell_mask1] + ref_cl[mode[1]+ mode[1]][ell_mask2])**(1/2.)
-            var_cls[f'-{mode}'] = var_cls[f'-{mode}'][ell_masks[mode]]
-            var_cls[f'+{mode}'] = var_cls[f'+{mode}'][ell_masks[mode]] 
-        
-    ax in zip(modes, axs):
-        ax.fill_between(data[ell_mask, 0], data[ell_mask, 2], data[ell_mask, 3])
-        
 
-        ref_ells[mode] = data[ell_mask, 0]
-        ref_cl[mode] = data[ell_mask, 1]
-        ax.fill_between(data[ell_mask, 0], data[ell_mask, 2], data[ell_mask, 3])
-
-
-            
-    
-    labels = []
-    for mdl, cls in cls_of_mdl.items():
-        ell_intersection_info={mode:np.intersect1d(
-                ref_ells[mode], cls["ell"], return_indices=True
-            ) for mode in modes}
-        for mode, ax in zip(modes, axs):
-            common_ells,ref_ind,mdl_ind = ell_intersection_info[mode]
-            scale_ells, scale_ell_ind0,scale_ell_ind1 = ell_intersection_info(np.intersect1d(ref_ells[mode[0] + mode[0]],ref_ells[mode[1] + mode[1]], return_indices=True)
-            )
-            ax.plot(
-                common_ells,
-                (cls[mode][mdl_ind] - ref_cl[mode][ref_ind])
-                / (
-                    (
-                        (ref_cl[mode[0] + mode[0]][scale_ell_ind0] * ref_cl[mode[1] + mode[1]][scale_ell_ind1])
-                        ** (1 / 2.0)
-                    )[ref_ind]
-                ),
-                label=mdl,
-            )
+    ref_ells = planck18_data.ell.loc[ell_min : ell_max + 1 : spacing]
 
     for mode, ax in zip(modes, axs):
+        for mdl, cls in cls_of_mdl.items():
+            ells, ref_idx, mdl_idx = np.intersect1d(
+                ref_ells, cls["ell"], return_indices=True
+            )
+            ax.scatter(
+                ells,
+                (cls[mode][mdl_idx] - planck18_data.cl.loc[mode, ells]),
+                label=mdl,
+                s=4,
+            )
         ax.set_ylabel(
             r"$\Delta\,C^{"
             + str(mode)
@@ -159,6 +148,7 @@ def plot_residuals_Cls_from_planck18(
         )
 
     plt.xlabel(r"$\ell$")
+    labels = ["planck18"] + list(cls_of_mdl.keys())
     fig.legend(labels, loc="right")
 
     if len(modes) == 1:

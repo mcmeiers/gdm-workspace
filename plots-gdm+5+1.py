@@ -131,8 +131,9 @@ for alpha, ps in param_sets.items():
     bgs[alpha] = model.provider.get_CLASS_background()
 
 # %%
+mc.plot_Cls_against_planck18(Cls)
 
-
+# %%
 mc.plot_Cls(Cls)
 plt.savefig(f"{MODEL_NAME}_cls-test.png")
 
