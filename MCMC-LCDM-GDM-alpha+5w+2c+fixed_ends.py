@@ -101,7 +101,7 @@ cobaya_info = dict(
         "planck_2018_lowl.EE": None,
         "planck_2018_highl_plik.TTTEEE_lite": None,
         "planck_2018_lensing.clik": None,
-        'gdm': {'external': gdm_likeihood,
+        'gdm': {'external': gdm_likelihood,
                 'output_params': ['Omega_gdm_max','z_gdm_max'],
                 'requires': {'CLASS_background': None}},
     },
@@ -117,6 +117,7 @@ cobaya_info = dict(
     ),
     output=str(CHAIN_DIR / PROJECT_NAME),
     resume= True,
+    debug= True,
     packages_path=str(COBAYA_PACKAGES_PATH),
 )
 
