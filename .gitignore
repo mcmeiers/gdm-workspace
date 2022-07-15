@@ -4,6 +4,5 @@
 gdm_cori_workspace.code-workspace
 .idea
 __pycache__/
-data/
 .vscode/
 *.data

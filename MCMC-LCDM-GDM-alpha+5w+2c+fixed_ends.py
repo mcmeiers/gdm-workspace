@@ -11,14 +11,13 @@ from cobaya.log import LoggedError
 from mpi4py import MPI
 
 # %% Define project name and output directory
-PROJECT_NAME = "gdm_alpha_5w_2c_fixed_ends"
 
-PROJECT_DIR = Path("/opt/project/") / PROJECT_NAME / ""
+PROJECT_NAME = "gdm_alpha_5w_2c_fixed_ends"
+PROJECT_DIR = Path.cwd() / PROJECT_NAME
 
 CHAIN_DIR = PROJECT_DIR / "chains/"
 (CHAIN_DIR / "").mkdir(exist_ok=True, parents=True)
-
-COBAYA_PACKAGES_PATH = Path("/software/cobaya_packages")
+CLASS_PATH = "/home/mmeiers/Projects/gdm_cosmology/code/my-class"
 
 # %% laod gdm model
 
@@ -70,16 +69,25 @@ lcdm_params = {
     },
     "tau_reio": {"latex": "\\tau_\\mathrm{reio}"},
     "Omega_gdm_max": None,
-    "z_gdm_max": None
+    "z_gdm_max": None,
+    **{f'H_{z}':}
 }
 
 # %% setup gdm_likelihood, it has a trivial likelihood but Omega_gdm_max and z_gdm_max are computed here
 
+
 def gdm_likelihood(_self):
-    bg =_self.provider.get_CLASS_background()
-    Omega_gdm = bg['(.)rho_gdm']/bg['H [1/Mpc]']**2
+    bg = _self.provider.get_CLASS_background()
+    Omega_gdm = bg["(.)rho_gdm"] / bg["H [1/Mpc]"] ** 2
     Omega_gdm_max_idx = np.argmax(Omega_gdm)
-    return (0, {'Omega_gdm_max': Omega_gdm[Omega_gdm_max_idx], 'z_gdm_max': bg['z'][Omega_gdm_max_idx]})
+    return (
+        0,
+        {
+            "Omega_gdm_max": Omega_gdm[Omega_gdm_max_idx],
+            "z_gdm_max": bg["z"][Omega_gdm_max_idx],
+        },
+    )
+
 
 # %%
 
@@ -91,7 +99,7 @@ cobaya_info = dict(
                 "non_linear": "hmcode",
                 "l_max_scalars": 5000,
             },
-            #"path": str(CLASS_PATH),
+            # "path": str(CLASS_PATH),
             #'provide': {'get_CLASS_background': None},
         }
     },
@@ -101,9 +109,12 @@ cobaya_info = dict(
         "planck_2018_lowl.EE": None,
         "planck_2018_highl_plik.TTTEEE_lite": None,
         "planck_2018_lensing.clik": None,
-        'gdm': {'external': gdm_likelihood,
-                'output_params': ['Omega_gdm_max','z_gdm_max'],
-                'requires': {'CLASS_background': None}},
+        "gdm": {
+            "external": gdm_likelihood,
+            "output_params": ["Omega_gdm_max", "z_gdm_max"],
+            "requires": {"CLASS_background": None},
+        },
+
     },
     sampler=dict(
         mcmc={
@@ -142,3 +153,5 @@ success = all(comm.allgather(success))
 
 if not success and rank == 0:
     print("Sampling failed!")
+
+# %%
