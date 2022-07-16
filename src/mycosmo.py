@@ -18,7 +18,7 @@ from functools import reduce
 
 REPO_DIR = Path(git.Repo(".", search_parent_directories=True).working_tree_dir)
 PACKAGE_DIR = Path(os.path.join(os.path.dirname(__file__)))
-DATA_DIR = Path.resolve(PACKAGE_DIR / "../data/")
+DATA_DIR = Path.resolve(REPO_DIR / "../data/")
 
 # %% ploting utilities
 
@@ -33,21 +33,23 @@ def _load_planck18_data():
         data = np.loadtxt(
             plk18_data_dir / f"COM_PowerSpect_CMB-{mode.upper()}-full_R3.01.txt"
         )
-        data_sets.append(
-            xr.Dataset(
-                {
-                    "cl": xr.DataArray(
-                        data[:, 1], dims="ell", coords={"ell": data[:, 0]}
-                    ),
-                    "var_cl": xr.DataArray(
-                        data[:, 2:],
-                        dims=("ell", "var_dir"),
-                        coords={"ell": data[:, 0], "var_dir": ["-", "+"]},
-                    ),
-                }
-            )
+        ds = xr.Dataset(
+            {
+                "cl": xr.DataArray(
+                    data[:, [1]],
+                    dims=("ell", "mode"),
+                    coords={"ell": data[:, 0], "mode": mode},
+                ),
+                "var_cl": xr.DataArray(
+                    data[:, 2:],
+                    dims=("ell", "var_dir"),
+                    coords={"ell": data[:, 0], "var_dir": ["-", "+"]},
+                ),
+            }
         )
-    return xr.concat(data_sets, dim=xr.Variable("mode", modes))
+        ds["cl_binned"]
+        data_sets.append(ds)
+    return xr.merge(data_sets)
 
 
 planck18_data = _load_planck18_data()

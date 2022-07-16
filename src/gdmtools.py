@@ -76,10 +76,10 @@ class wModel:
               A sequence of floats where the w(log10a) values will be set
               for the spline.
             extra_fixed_knots:: Sequence(tuple(2))
-              A sequence of tuples of the form (fixed_idx,fixed_w_val)
+              A sequence of tuples of the form (fixed_log10a_val,fixed_w_val)
 
-              fixed_idx::int
-                The index of knots_log10a for which the w_value is fixed.
+              fixed_log10a_val::float
+                The log10a val for which the w_value is fixed.
               fixed_w_val::float
                 The w_value for the fixed knot.
         """
@@ -182,26 +182,28 @@ class gdmModel(CosmoModelSpaceComponent):
     yaml_tag = "!gdmModel"
     """TODO"""
 
-    def __init__(self, w_model, alpha, c_eff2=0, c_vis2=0, z_alpha=0, has_NAP=True):
+    def __init__(self, w_model, alpha, c_eff2=0, c_vis2=0, z_alpha=0):
 
         self.w_model = w_model
         self.alpha = alpha
         self.c_eff2 = c_eff2
         self.c_vis2 = c_vis2
         self.z_alpha = z_alpha
-        self.has_NAP = has_NAP
+
         self.params = {
             "gdm_alpha": {**self.alpha, "latex": "\\alpha_{gdm}"},
             **w_model.params,
-            "gdm_c_eff2": self.c_eff2,
             "gdm_c_vis2": self.c_vis2,
         }
-
+        self.has_NAP = "N"
+        if c_eff2 is not None:
+            self.params["c_eff2"] = self.c_eff2
+            self.has_NAP = "Y"
         self.fixed_settings = {
             "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
             "gdm_interpolation_order": 1,
             "gdm_z_alpha": self.z_alpha,
-            "nap": has_NAP,
+            "nap": self.has_NAP,
         }
 
     @classmethod
