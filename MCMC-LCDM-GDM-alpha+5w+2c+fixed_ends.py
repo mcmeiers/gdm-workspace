@@ -114,6 +114,7 @@ cobaya_info = dict(
             "output_params": ["Omega_gdm_max", "z_gdm_max"],
             "requires": {"CLASS_background": None},
         },
+
     },
     sampler=dict(
         mcmc={
@@ -126,7 +127,9 @@ cobaya_info = dict(
         }
     ),
     output=str(CHAIN_DIR / PROJECT_NAME),
-    resume=True,
+    resume= True,
+    debug= True,
+    packages_path=str(COBAYA_PACKAGES_PATH),
 )
 
 # %%

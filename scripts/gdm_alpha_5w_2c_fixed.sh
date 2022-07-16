@@ -11,7 +11,7 @@
 #SBATCH --output=./logs/gdm1+5+2-fixed-%j.out
 #SBATCH --error=./logs/gdm1+5+2-fixed-%j.err
 #SBATCH --image=docker:mcmeiers/gdm:latest
-#SBATCH --volume="/global/cscratch1/sd/mcmeiers:/opt/project/output"
+#SBATCH --volume="/global/cscratch1/sd/mcmeiers:/opt/project"
 
 #export OMP_PROC_BIND=true
 #export OMP_PLACES=threads
