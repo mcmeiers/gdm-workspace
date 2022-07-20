@@ -1,5 +1,6 @@
 !gdmModel
-alpha: {max: 0.05, min: 0}
+alpha:
+  prior: {max: 0.05, min: 0}
 c_eff2: null
 c_vis2: 0
 w_model: !wModel

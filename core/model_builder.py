@@ -1,7 +1,6 @@
 # %%
 import numpy as np
 
-import os
 import sys
 import git
 from pathlib import Path
@@ -35,7 +34,11 @@ wMdl = gdm.wModel(
 )  # range_filter=range_filter)
 
 gdmMdl = gdm.gdmModel(
-    w_model=wMdl, alpha={"min": 0, "max": 0.05}, c_eff2=None, c_vis2=0, z_alpha=3000
+    w_model=wMdl,
+    alpha={"prior": {"min": 0, "max": 0.05}},
+    c_eff2=None,
+    c_vis2=0,
+    z_alpha=3000,
 )
 
 with open(MODEL_DIR / f"{MODEL_NAME}.gdm.yaml", "w") as f:
