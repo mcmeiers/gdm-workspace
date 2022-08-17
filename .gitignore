@@ -6,3 +6,4 @@ gdm_cori_workspace.code-workspace
 __pycache__/
 .vscode/
 *.data
+/logs

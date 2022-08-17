@@ -1,11 +1,11 @@
 # %%
 import os
 import sys
-import git
+#import git
 from pathlib import Path
 
-REPO_DIR = Path(git.Repo(".", search_parent_directories=True).working_tree_dir)
-sys.path.append(str(REPO_DIR))
+#REPO_DIR = Path("/global/homes/m/mcmeiers/Project/gdm-workspace")
+#sys.path.append(str(REPO_DIR))
 
 import numpy as np
 
@@ -19,8 +19,7 @@ from mpi4py import MPI
 
 # %%
 
-DATA_DIR = REPO_DIR / "data"
-MODEL_DIR = REPO_DIR / "models"
+MODEL_DIR = Path("./models")
 
 
 # %% Change below to set model info
@@ -35,10 +34,11 @@ CHAIN_DIR = OUTPUT_DIR / "chains/"
 (CHAIN_DIR / "").mkdir(exist_ok=True, parents=True)
 CHAIN_PATH = CHAIN_DIR / MODEL_NAME
 
-CLASS_PATH = "/home/mcmeiers/Projects/gdm_cosmology/code/my_class"
+COBAYA_PACKAGES_PATH = Path("/software/cobaya_packages")
+CLASS_PATH = COBAYA_PACKAGES_PATH / "code/class_public-designer/"
 
 # %% Load gdm model
-gdm_model = gdmtools.yaml.load(MODEL_DIR / MODEL_NAME + ".gdm.yaml")
+gdm_model = gdm.yaml.load(MODEL_DIR / (MODEL_NAME + ".gdm.yaml"))
 
 
 # %% lcdm model params
@@ -128,7 +128,7 @@ cobaya_info = dict(
                 "non_linear": "hmcode",
                 "l_max_scalars": 5000,
             },
-            "path": str(CLASS_PATH),
+            #"path": str(CLASS_PATH),
         }
     },
     params={**lcdm_params, **gdm_model.params},
@@ -154,7 +154,8 @@ cobaya_info = dict(
             "Rminus1_cl_stop": 0.025,
         }
     ),
-    output=str(CHAIN_DIR / PROJECT_NAME),
+    output=str(CHAIN_PATH),
+    packages_path=str(COBAYA_PACKAGES_PATH),
     resume=True,
 )
 
@@ -162,14 +163,10 @@ cobaya_info = dict(
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
-if rank == 0:
-    with open(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml", "w") as f:
-        gdmtools.yaml.dump(gdm_model, f)
-
 success = False
 
 try:
-    upd_info, mcmc = run(cobaya_info, resume=True)
+    upd_info, mcmc = run(cobaya_info)
     success = True
 except LoggedError as err:
     pass

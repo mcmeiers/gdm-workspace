@@ -13,12 +13,14 @@ from mpi4py import MPI
 # %% Define project name and output directory
 
 PROJECT_NAME = "gdm_alpha_5w_2c_fixed_ends"
-PROJECT_DIR = Path.cwd() / PROJECT_NAME
+PROJECT_DIR = Path("/opt/project/") / PROJECT_NAME / ""
+#PROJECT_DIR = Path.cwd() / PROJECT_NAME
 
 CHAIN_DIR = PROJECT_DIR / "chains/"
 (CHAIN_DIR / "").mkdir(exist_ok=True, parents=True)
 CLASS_PATH = "/home/mmeiers/Projects/gdm_cosmology/code/my-class"
 
+COBAYA_PACKAGES_PATH = Path("/software/cobaya_packages")
 # %% laod gdm model
 
 gdm_model = gdmtools.yaml.load(PROJECT_DIR / f"{PROJECT_NAME}+model.yaml")
@@ -70,7 +72,6 @@ lcdm_params = {
     "tau_reio": {"latex": "\\tau_\\mathrm{reio}"},
     "Omega_gdm_max": None,
     "z_gdm_max": None,
-    **{f'H_{z}':}
 }
 
 # %% setup gdm_likelihood, it has a trivial likelihood but Omega_gdm_max and z_gdm_max are computed here
@@ -128,7 +129,6 @@ cobaya_info = dict(
     ),
     output=str(CHAIN_DIR / PROJECT_NAME),
     resume= True,
-    debug= True,
     packages_path=str(COBAYA_PACKAGES_PATH),
 )
 

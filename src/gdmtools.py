@@ -197,7 +197,7 @@ class gdmModel(CosmoModelSpaceComponent):
         }
         self.has_NAP = "N"
         if c_eff2 is not None:
-            self.params["c_eff2"] = self.c_eff2
+            self.params["gdm_c_eff2"] = self.c_eff2
             self.has_NAP = "Y"
         self.fixed_settings = {
             "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
