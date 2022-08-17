@@ -1,0 +1,16 @@
+!gdmModel
+alpha:
+  prior: {max: 0.05, min: 0}
+c_eff2:
+  prior: {max: 1, min: 0}
+c_vis2:
+  prior: {max: 1, min: 0}
+w_model: !wModel
+  fixed_knots:
+  - [-14.0, 0.3333333333333333]
+  - [-5.0, 0.3333333333333333]
+  - [-3, 0.3333333333333333]
+  - [0.0, 0.3333333333333333]
+  free_knots_log10a: [-4.5, -4.0, -3.5]
+  range_filter: []
+z_alpha: 3000
