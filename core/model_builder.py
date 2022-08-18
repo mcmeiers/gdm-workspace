@@ -17,7 +17,7 @@ MODEL_DIR = REPO_DIR / "models"
 
 # %% Change below to set model info
 
-MODEL_NAME = "gdm-step-v2"
+MODEL_NAME = "gdm-step+2c"
 
 free_knots_log10a = tuple(float(x) for x in np.linspace(-4.5, -3.5, 3))
 fixed_knots = [(-14.0, 1 / 3.0), (-5.0, 1 / 3.0), (-3, 1 / 3.0), (0.0, 1 / 3.0)]
@@ -36,8 +36,8 @@ wMdl = gdm.wModel(
 gdmMdl = gdm.gdmModel(
     w_model=wMdl,
     alpha={"prior": {"min": 0, "max": 0.05}},
-    c_eff2=None,
-    c_vis2=0,
+    c_eff2={"prior": {"min": 0, "max": 1}},
+    c_vis2={"prior": {"min": 0, "max": 1}},
     z_alpha=3000,
 )
 
