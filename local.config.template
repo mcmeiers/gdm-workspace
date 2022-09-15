@@ -1,0 +1,5 @@
+output-dir: output
+models-dir: models
+
+class-dir: ../code/my_class
+cobaya-pkg-dir: ..

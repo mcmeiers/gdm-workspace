@@ -116,7 +116,7 @@ class wModel:
             _comma_separated_param_args += f"{param}, "
 
         self.fixed_params = {}
-        _comma_separated_param_kwargs = ""
+        _comma_separated_fixed_w_kwargs = ""
         for w_idx, (log10a, w_val) in enumerate(self.fixed_knots):
             param = f"w_fixed{w_idx}"
             self.fixed_params[param] = {"value": w_val, "drop": True}
@@ -126,7 +126,7 @@ class wModel:
                     param,
                 )
             )
-            _comma_separated_param_kwargs += f"{param}={w_val},"
+            _comma_separated_fixed_w_kwargs += f"{param}={w_val},"
 
         _log10a_param_pairs.sort()
         self.knots_log10a, params_in_log10a_order = tuple(zip(*_log10a_param_pairs))
@@ -135,15 +135,14 @@ class wModel:
         comma_separated_params_log10a_ordered = ", ".join(params_in_log10a_order)
 
         # Create str of either the fixed value or the variable name with comma separation, use for output of w_val fns
-        self.knots_w_vals = eval(
-            f"lambda {_comma_separated_param_args}{_comma_separated_param_kwargs}: [{comma_separated_params_log10a_ordered}]"
-        )
-        self.classy_fmt_knots_w_vals = eval(
-            f"lambda {_comma_separated_param_args}{_comma_separated_param_kwargs}: ','.join(map(str,[{comma_separated_params_log10a_ordered}]))"
+        self.w_vals = eval(
+            f"lambda {_comma_separated_param_args}{_comma_separated_fixed_w_kwargs}: [{comma_separated_params_log10a_ordered}]"
         )
 
+        self._cobaya_w_vals_lambda = f"lambda {_comma_separated_param_args}{_comma_separated_fixed_w_kwargs}: ','.join(map(str,[{comma_separated_params_log10a_ordered}]))"
+
         self.derived_params = {
-            "gdm_w_vals": {"value": self.classy_fmt_knots_w_vals, "derived": False}
+            "gdm_w_vals": {"value": self._cobaya_w_vals_lambda, "derived": False}
         }
 
         self.params = {
@@ -165,41 +164,55 @@ class wModel:
         dict_representation = constructor.construct_mapping(node, deep=True)
         return cls(**dict_representation)
 
-    def w_vals(self, var_w_vals):
-        """
-        TODO
-        :param var_w_vals:
-        :return:
-        """
-        w_vals = copy(self._prefixed_w_vals)
-        for idx, val in zip(self._var_knots_idx, var_w_vals):
-            w_vals[idx] = val
-        return w_vals
-
 
 @yaml_object(yaml)
 class gdmModel(CosmoModelSpaceComponent):
     yaml_tag = "!gdmModel"
     """TODO"""
 
-    def __init__(self, w_model, alpha, c_eff2=0, c_vis2=0, z_alpha=0):
+    def __init__(self, w_model, alpha, c_eff2=None, c_vis2=0, z_alpha=0):
 
+        # store creation parameters
         self.w_model = w_model
         self.alpha = alpha
         self.c_eff2 = c_eff2
         self.c_vis2 = c_vis2
         self.z_alpha = z_alpha
 
-        self.params = {
-            "gdm_alpha": {**self.alpha, "latex": "\\alpha_{gdm}"},
-            **w_model.params,
-            "gdm_c_vis2": self.c_vis2,
-        }
+        # initialize [fixed,sampled,derived] parameters
+        self.fixed_params = copy(self.w_model.fixed_params)
+        self.derived_params = copy(self.w_model.derived_params)
+        self.sampled_params = copy(self.w_model.sampled_params)
+
+        if isinstance(self.alpha, dict):
+            self.sampled_params["gdm_alpha"] = {**self.alpha, "latex": r"\alpha_{gdm}"}
+        else:
+            self.fixed_params["gdm_alpha"] = self.alpha
+
+        if isinstance(self.c_vis2, dict):
+            self.sampled_params["gdm_c_vis2"] = {
+                **self.c_vis2,
+                "renames": "c_vis^2",
+                "latex": r"c_{vis}^2",
+            }
+        else:
+            self.fixed_params["gdm_c_vis2"] = self.c_vis2
+
         self.has_NAP = "N"
         if c_eff2 is not None:
-            self.params["gdm_c_eff2"] = self.c_eff2
+            if isinstance(self.c_eff2, dict):
+                self.sampled_params["gdm_c_eff2"] = {
+                    **self.c_eff2,
+                    "renames": "c_eff^2",
+                    "latex": r"c_{eff}^2",
+                }
+            else:
+                self.fixed_params["gdm_c_eff2"] = self.c_eff2
             self.has_NAP = "Y"
-        self.fixed_settings = {
+
+        self.params = self.fixed_params | self.sampled_params | self.derived_params
+
+        self.cobaya_fixed_settings = {
             "gdm_log10a_vals": ",".join(map(str, self.w_model.knots_log10a)),
             "gdm_interpolation_order": 1,
             "gdm_z_alpha": self.z_alpha,
