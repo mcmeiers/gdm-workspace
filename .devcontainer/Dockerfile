@@ -1,4 +1,4 @@
-FROM docker.io/continuumio/miniconda3:4.10.3
+FROM docker.io/continuumio/miniconda3:latest
 
 # Install base python3
 RUN \
@@ -13,40 +13,6 @@ RUN \
         wget              && \
     apt-get clean all
 
-ENV PATH=/opt/conda/bin:$PATH
-
-# install MPICH
-ARG mpich=3.3
-ARG mpich_prefix=mpich-$mpich
-RUN \
-    wget https://www.mpich.org/static/downloads/$mpich/$mpich_prefix.tar.gz && \
-    tar xvzf $mpich_prefix.tar.gz                                           && \
-    cd $mpich_prefix                                                        && \
-    ./configure                                                             && \
-    make -j 4                                                               && \
-    make install                                                            && \
-    make clean                                                              && \
-    cd ..
-
-
-
-# set up software directory outside of /root for shifter
-ENV PYTHONPATH /opt/conda/lib/python3.9/site-packages
-
-# install various python packages
-RUN /opt/conda/bin/conda install -c conda-forge \
-    matplotlib    \
-    numpy         \
-    cython        \
-    scipy         \
-    ipython       \
-    ruamel.yaml   \
-    ipykernel     \
-    mpi4py        
-
-RUN python -m pip install cobaya==3.2.1 --upgrade
-RUN python -m pip install getdist
-
 # install cfits
 WORKDIR /software
 ARG cfits=cfitsio-4.0.0
@@ -58,8 +24,61 @@ RUN ./configure
 RUN make shared
 
 
+# install MPICH
+ARG mpich=3.3
+ARG mpich_prefix=mpich-$mpich
+
+ENV FFLAGS "-w -fallow-argument-mismatch"
+RUN \
+    wget https://www.mpich.org/static/downloads/$mpich/$mpich_prefix.tar.gz && \
+    tar xvzf $mpich_prefix.tar.gz                                           && \
+    cd $mpich_prefix                                                        && \
+    ./configure                                                             && \
+    make -j 4                                                               && \
+    make install                                                            && \
+    make clean                                                              && \
+    cd ..                                                                   && \
+    rm -rf $mpich_prefix 
+
+RUN /sbin/ldconfig
+
+# set up software directory outside of /root for shifter
+ENV PATH=/opt/conda/bin:$PATH
+ENV PYTHONPATH /opt/conda/lib/python3.9/site-packages
+ENV PIP_TARGET /opt/conda/lib/python3.9/site-packages
+
+# install various python packages
+RUN /opt/conda/bin/conda install -c conda-forge \
+    matplotlib    \
+    numpy         \
+    cython        \
+    scipy         \
+    ipython       \
+    ruamel.yaml   \
+    ipykernel     \
+    gitpython           
+
+# install mpi4py
+ARG mpi4py=3.1.3
+ARG mpi4py_prefix=mpi4py-$mpi4py
+
+RUN \
+    wget https://bitbucket.org/mpi4py/mpi4py/downloads/$mpi4py_prefix.tar.gz && \
+    tar xvzf $mpi4py_prefix.tar.gz                                           && \
+    cd $mpi4py_prefix                                                        && \
+    python3 setup.py build                                                   && \
+    python3 setup.py install                                                 && \
+    cd ..                                                                    && \
+    rm -rf $mpi4py_prefix
+
+
+RUN python -m pip install cobaya==3.2.1 --upgrade
+RUN python -m pip install getdist
+
+
+
 # install cobaya pacakges
-RUN python -m cobaya install -p /software/cobaya_packages planck_2018_lowl.TT planck_2018_lowl.EE 
+RUN python -m cobaya install -p /software/cobaya_packages planck_2018_lowl.TT planck_2018_lowl.EE polychord
 
 # install CLASS
 WORKDIR /software/cobaya_packages/code
