@@ -48,87 +48,93 @@ class Test_wModel:
         expected_params = {"w_fixed0": {"value": 1, "drop": True}}
         assert w_mdl.fixed_params == expected_params
 
-    def test_wModel_knots_w_vals_expected_output(self):
+    def test_wModel_w_vals_expected_output(self):
         w_mdl = gdmtools.wModel([-1, 0])
-        assert all(w_mdl.knots_w_vals(1 / 2.0, 1 / 3.0) == np.array([1 / 2.0, 1 / 3.0]))
+        assert all(w_mdl.w_vals(1 / 2.0, 1 / 3.0) == np.array([1 / 2.0, 1 / 3.0]))
 
-    def test_wModel_knots_w_vals_expected_output_with_fixed(self):
+    def test_wModel_w_vals_expected_output_with_fixed(self):
         w_mdl = gdmtools.wModel([-1], fixed_knots=[(0, 1)])
-        assert all(w_mdl.knots_w_vals(1 / 3.0) == np.array([1 / 3.0, 1]))
+        assert all(w_mdl.w_vals(1 / 3.0) == np.array([1 / 3.0, 1]))
 
-    def test_wModel_classy_fmt_knots_w_vals_signature(self):
+    def test_wModel_cobaya_w_vals_signature(self):
         w_mdl = gdmtools.wModel([-1, 0])
-        assert tuple(inspect.signature(w_mdl.knots_w_vals).parameters.keys()) == (
+        assert tuple(
+            inspect.signature(eval(w_mdl._cobaya_w_vals_lambda)).parameters.keys()
+        ) == (
             "w_0",
             "w_1",
         )
 
-    def test_wModel_classy_fmt_knots_w_vals_args_with_fixed(self):
+    def test_wModel_cobaya_w_vals_args_with_fixed(self):
         w_mdl = gdmtools.wModel([0], fixed_knots=[(-1, 1)])
         expected_args = ("w_0",)
+        w_vals_fn = eval(w_mdl._cobaya_w_vals_lambda)
         assert (
             tuple(
                 param_name
                 for param_name, param_info in inspect.signature(
-                    w_mdl.knots_w_vals
+                    w_vals_fn
                 ).parameters.items()
                 if param_info.default == inspect.Parameter.empty
             )
             == expected_args
         )
 
-    def test_wModel_classy_fmt_knots_w_vals_expected_output(self):
+    def test_wModel_cobaya_w_vals_expected_output(self):
         w_mdl = gdmtools.wModel([-1, 0])
-        assert w_mdl.classy_fmt_knots_w_vals(1 / 2.0, 1 / 3.0) == f"{1/2.},{1/3.}"
+        assert eval(w_mdl._cobaya_w_vals_lambda)(1 / 2.0, 1 / 3.0) == f"{1/2.},{1/3.}"
 
-    def test_wModel_classy_fmt_knots_w_vals_expected_output_with_fixed(self):
+    def test_wModel_cobaya_w_vals_expected_output_with_fixed(self):
         w_mdl = gdmtools.wModel([-1], [(0, 1)])
-        assert w_mdl.classy_fmt_knots_w_vals(1 / 3.0) == f"{1 / 3.0},1"
+        assert eval(w_mdl._cobaya_w_vals_lambda)(1 / 3.0) == f"{1 / 3.0},1"
 
 
 class Test_gdmModel:
-    def test_gdm_model_fixed_settings(self):
+    def test_gdm_fixed_class_settings_settings(self):
         w_mdl = gdmtools.wModel([-1, 0])
         alpha = {"min": 0, "max": 0.3}
-        gdm_mdl = gdmtools.gdmModel(w_mdl, alpha)
+        gdm_z_alpha = 12
+        gdm_mdl = gdmtools.gdmModel(w_mdl, alpha, z_alpha=gdm_z_alpha)
         expected_settings = {
             "gdm_log10a_vals": "-1,0",
             "gdm_interpolation_order": 1,
+            "gdm_z_alpha": gdm_z_alpha,
+            "nap": "Y",
         }
-        assert gdm_mdl.fixed_settings == expected_settings
+        assert gdm_mdl.fixed_class_settings == expected_settings
 
     def test_gdm_params(self):
         w_mdl = gdmtools.wModel([-1, 0])
-        alpha = {"min": 0, "max": 0.3}
+        alpha = {"prior": {"min": 0, "max": 0.3}}
         gdm_mdl = gdmtools.gdmModel(w_mdl, alpha)
         expected_settings = {
             "gdm_alpha": {"prior": {"min": 0, "max": 0.3}, "latex": "\\alpha_{gdm}"},
             "w_0": {"prior": {"min": -1, "max": 1}, "drop": True},
             "w_1": {"prior": {"min": -1, "max": 1}, "drop": True},
-            "gdm_w_vals": {"value": w_mdl.classy_fmt_knots_w_vals, "derived": False},
+            "gdm_w_vals": {
+                "value": gdm_mdl._cobaya_w_vals_lambda,
+                "derived": False,
+            },
             "gdm_c_eff2": 0,
             "gdm_c_vis2": 0,
-            "gdm_z_alpha": 0,
         }
         assert gdm_mdl.params == expected_settings
 
     def test_gdm_params_with_variable_non_defaults(self):
         w_mdl = gdmtools.wModel([-1, 0])
-        alpha = {"min": 0, "max": 0.3}
+        alpha = {"prior": {"min": 0, "max": 0.3}}
         c_vis2 = 1 / 5
         c_eff2 = {"min": 0, "max": 1}
         w_mdl = gdmtools.wModel([-1, 0])
-        z_alpha = 12
         gdm_mdl = gdmtools.gdmModel(
-            w_mdl, alpha, c_eff2={"min": 0, "max": 1}, c_vis2=c_vis2, z_alpha=z_alpha
+            w_mdl, alpha, c_eff2={"min": 0, "max": 1}, c_vis2=c_vis2
         )
         expected_settings = {
             "gdm_alpha": {"prior": {"min": 0, "max": 0.3}, "latex": "\\alpha_{gdm}"},
             "w_0": {"prior": {"min": -1, "max": 1}, "drop": True},
             "w_1": {"prior": {"min": -1, "max": 1}, "drop": True},
-            "gdm_w_vals": {"value": w_mdl.classy_fmt_knots_w_vals, "derived": False},
+            "gdm_w_vals": {"value": w_mdl._cobaya_w_vals_lambda, "derived": False},
             "gdm_c_eff2": c_eff2,
             "gdm_c_vis2": c_vis2,
-            "gdm_z_alpha": z_alpha,
         }
         assert gdm_mdl.params == expected_settings
